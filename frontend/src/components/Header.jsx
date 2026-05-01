@@ -9,8 +9,8 @@ import zarpados from '@/assets/zarpados-22.png'
 import { withWholesale } from "../utils/navigation.js";
 import { formatPrice } from "../utils/price.js";
 import { Search, ShoppingCart } from "lucide-react";
-import shatha from '@/assets/logo_attar_prueba.png'
-import { PERFUME_CATEGORY_DEFINITIONS } from "../utils/perfumeCategories.js";
+import shatha from '@/assets/logo_ayman_sisi.png'
+import { CATEGORY_GROUPS } from "../utils/perfumeCategories.js";
 
 const API = import.meta.env.VITE_BACKEND_URL?.replace(/\/+$/, "") || "";
 
@@ -130,6 +130,8 @@ export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
   const [productsDropdownOpen, setProductsDropdownOpen] = useState(false);
+  const [activeProductCategoryRoute, setActiveProductCategoryRoute] = useState("");
+  const [expandedMobileCategoryRoute, setExpandedMobileCategoryRoute] = useState("");
   const navigate = useNavigate();
   const location = useLocation();
   const searchBoxRef = useRef(null);
@@ -237,20 +239,19 @@ export default function Header() {
 
   const cartItemsCount = (store.cart || []).reduce((t, i) => t + (i.quantity || 0), 0);
 
-  // Categorías para el dropdown (coinciden con las del backend)
-  const categoryIcons = {
-    1: "🖤",
-    2: "🌸",
-    3: "✨",
-    // 4: "🧴",
-    // 5: "🌸",
-    // 7: "🏷️",
-  };
-  const productCategories = PERFUME_CATEGORY_DEFINITIONS.map((category) => ({
+  // Categorías agrupadas para que el menú no se vuelva interminable.
+  const productCategories = CATEGORY_GROUPS.map((category) => ({
     name: category.name,
     route: `/categoria/${category.slug}`,
-    icon: categoryIcons[category.id] || "•",
+    children: (category.children || []).map((child) => ({
+      name: child.name,
+      route: `/categoria/${child.slug}`,
+    })),
   }));
+  const activeProductCategory =
+    productCategories.find((category) => category.route === activeProductCategoryRoute) ||
+    productCategories.find((category) => category.children.length > 0) ||
+    null;
 
   const goToContact = (e) => {
     e.preventDefault();
@@ -303,7 +304,7 @@ export default function Header() {
     <>
       <header
         className={[
-          "fixed top-0 left-0 right-0 md:sticky md:top-0 z-50 bg-[#0B0608]/95 border-b border-yellow-600/20 overflow-visible",
+          "fixed top-0 left-0 right-0 md:sticky md:top-0 z-50 bg-[#0B0B0B] border-b border-yellow-600/20 overflow-visible",
           "transition-shadow duration-300",
           isScrolled ? "shadow-lg" : "shadow-none"
         ].join(" ")}
@@ -379,6 +380,10 @@ export default function Header() {
                 onMouseEnter={() => {
                   if (productsCloseTimer.current) clearTimeout(productsCloseTimer.current);
                   setProductsDropdownOpen(true);
+                  if (!activeProductCategoryRoute) {
+                    const firstWithChildren = productCategories.find((category) => category.children.length > 0);
+                    setActiveProductCategoryRoute(firstWithChildren?.route || "");
+                  }
                 }}
                 onMouseLeave={() => {
                   if (productsCloseTimer.current) clearTimeout(productsCloseTimer.current);
@@ -388,7 +393,14 @@ export default function Header() {
                 }}
               >
                 <button
-                  onClick={() => setProductsDropdownOpen(!productsDropdownOpen)}
+                  onClick={() => {
+                    const nextOpen = !productsDropdownOpen;
+                    setProductsDropdownOpen(nextOpen);
+                    if (nextOpen && !activeProductCategoryRoute) {
+                      const firstWithChildren = productCategories.find((category) => category.children.length > 0);
+                      setActiveProductCategoryRoute(firstWithChildren?.route || "");
+                    }
+                  }}
                   className="flex items-center text-gray-300 hover:text-amber-300 transition-all duration-300 bg-transparent p-0 border-0 rounded-none appearance-none focus:outline-none focus:ring-0 hover:bg-transparent active:bg-transparent uppercase"
                   style={{ backgroundColor: 'transparent', boxShadow: 'none' }}
                 >
@@ -406,7 +418,7 @@ export default function Header() {
 
                 {/* Dropdown Menu */}
                 <div
-                  className={`absolute left-0 top-full -mt-px w-72 bg-[#111113]
+                  className={`absolute left-0 top-full -mt-px w-[38rem] bg-[#111113]
   rounded-b-xl rounded-t-none
   shadow-2xl border border-amber-500/20 border-t-0
   backdrop-blur-lg z-50 overflow-hidden
@@ -415,32 +427,81 @@ export default function Header() {
 `}
                 >
 
-                  <div className="pt-3 pb-2 border-t-2 border-amber-500/60">
-                    <Link
-                      to={withWholesale("/products")}
-                      className="flex items-center px-5 py-3 text-sm text-gray-300 hover:text-amber-300 hover:bg-[#1a1a1d] transition-all duration-200"
-                      onClick={() => {
-                        window.scrollTo({ top: 0, behavior: "smooth" });
-                        setProductsDropdownOpen(false);
-                      }}
-
-                    >
-                      Ver todos los productos
-                    </Link>
-                    {productCategories.map((category) => (
+                  <div className="grid grid-cols-[17rem_1fr] border-t-2 border-amber-500/60">
+                    <div className="py-3 border-r border-amber-500/10">
                       <Link
-                        key={category.route}
-                        to={withWholesale(category.route)}
-                        className="block px-5 py-3 text-sm text-gray-300 hover:text-amber-300 hover:bg-[#1a1a1d] transition-all duration-200 border-b border-amber-500/10"
+                        to={withWholesale("/products")}
+                        className="flex items-center px-5 py-3 text-[15px] text-gray-300 hover:text-amber-300 hover:bg-[#1a1a1d] transition-all duration-200"
                         onClick={() => {
                           window.scrollTo({ top: 0, behavior: "smooth" });
                           setProductsDropdownOpen(false);
                         }}
+
                       >
-                        <span className="mr-3 text-base opacity-80">{category.icon}</span>
-                        {category.name}
+                        Ver todos los productos
                       </Link>
-                    ))}
+                      {productCategories.map((category) => {
+                        const hasChildren = category.children.length > 0;
+                        const active = activeProductCategory?.route === category.route;
+
+                        if (!hasChildren) {
+                          return (
+                            <Link
+                              key={category.route}
+                              to={withWholesale(category.route)}
+                              className="block px-5 py-3 text-[15px] text-gray-200 hover:text-amber-300 hover:bg-[#1a1a1d] transition-all duration-200"
+                              onClick={() => {
+                                window.scrollTo({ top: 0, behavior: "smooth" });
+                                setProductsDropdownOpen(false);
+                              }}
+                            >
+                              {category.name}
+                            </Link>
+                          );
+                        }
+
+                        return (
+                          <button
+                            key={category.route}
+                            type="button"
+                            onMouseEnter={() => setActiveProductCategoryRoute(category.route)}
+                            onClick={() => setActiveProductCategoryRoute(category.route)}
+                            className={`flex w-full items-center justify-between px-5 py-3 text-left text-[15px] transition-all duration-200 bg-transparent border-0 rounded-none ${active
+                              ? "bg-[#1a1a1d] text-amber-300"
+                              : "text-gray-200 hover:text-amber-300 hover:bg-[#1a1a1d]"
+                              }`}
+                          >
+                            <span>{category.name}</span>
+                            <span aria-hidden="true" className="text-lg leading-none">›</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    <div className="py-3">
+                      {activeProductCategory?.children?.length > 0 ? (
+                        <>
+                          <div className="px-5 pb-2 text-[13px] uppercase tracking-wider text-gray-500">
+                            {activeProductCategory.name}
+                          </div>
+                          {activeProductCategory.children.map((child) => (
+                            <Link
+                              key={child.route}
+                              to={withWholesale(child.route)}
+                              className="block px-5 py-3 text-[15px] normal-case tracking-normal text-gray-300 hover:text-amber-300 hover:bg-[#1a1a1d] transition-colors"
+                              onClick={() => {
+                                window.scrollTo({ top: 0, behavior: "smooth" });
+                                setProductsDropdownOpen(false);
+                              }}
+                            >
+                              {child.name}
+                            </Link>
+                          ))}
+                        </>
+                      ) : (
+                        <div className="px-5 py-3 text-[15px] text-gray-500">Selecciona una categoría</div>
+                      )}
+                    </div>
                   </div>
                 </div>
 
@@ -691,7 +752,7 @@ export default function Header() {
             <div className="md:hidden absolute left-0 right-0 top-full z-50">
               <div
                 ref={mobileMenuRef}
-                className="bg-[#111113] shadow-xl border-t border-amber-500/20 px-4 pt-1 pb-5 space-y-3 font-serif tracking-wide"
+                className="max-h-[calc(100vh-5rem)] overflow-y-auto overscroll-contain bg-[#111113] shadow-xl border-t border-amber-500/20 px-4 pt-1 pb-5 space-y-3 font-serif tracking-wide"
               >
                 {/* Botón X dedicado para cerrar */}
                 <div className="flex justify-end -mt-1 -mr-1">
@@ -731,16 +792,57 @@ export default function Header() {
                       Ver todos los productos
                     </Link>
 
-                    {productCategories.map((category) => (
-                      <Link
-                        key={category.route}
-                        to={withWholesale(category.route)}
-                        className="block text-gray-300 hover:text-amber-300 transition-colors"
-                        onClick={() => setIsMenuOpen(false)}
-                      >
-                        {category.icon} {category.name}
-                      </Link>
-                    ))}
+                    {productCategories.map((category) => {
+                      const hasChildren = category.children.length > 0;
+                      const expanded = expandedMobileCategoryRoute === category.route;
+
+                      return (
+                        <div key={category.route} className="border-b border-amber-500/10 pb-2 last:border-b-0">
+                          {hasChildren ? (
+                            <button
+                              type="button"
+                              className="flex w-full items-center justify-between bg-transparent border-0 p-0 text-left text-gray-200 hover:text-amber-300 transition-colors"
+                              onClick={() =>
+                                setExpandedMobileCategoryRoute((current) =>
+                                  current === category.route ? "" : category.route
+                                )
+                              }
+                            >
+                              <span>{category.name}</span>
+                              <span
+                                aria-hidden="true"
+                                className={`text-lg leading-none transition-transform ${expanded ? "rotate-90" : ""}`}
+                              >
+                                ›
+                              </span>
+                            </button>
+                          ) : (
+                            <Link
+                              to={withWholesale(category.route)}
+                              className="block text-gray-200 hover:text-amber-300 transition-colors"
+                              onClick={() => setIsMenuOpen(false)}
+                            >
+                              {category.name}
+                            </Link>
+                          )}
+
+                          {hasChildren && expanded && (
+                            <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-2 pl-3">
+                              {category.children.map((child) => (
+                                <Link
+                                  key={child.route}
+                                  to={withWholesale(child.route)}
+                                  className="truncate text-[15px] text-gray-400 hover:text-amber-300 transition-colors"
+                                  onClick={() => setIsMenuOpen(false)}
+                                >
+                                  {child.name}
+                                </Link>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
 
                   </div>
                 </div>

@@ -1,7 +1,7 @@
 import React from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { withWholesale } from '../utils/navigation.js'
-import { PERFUME_CATEGORY_DEFINITIONS as FOOTER_CATEGORIES } from '../utils/perfumeCategories.js'
+import { CATEGORY_GROUPS as FOOTER_CATEGORIES } from '../utils/perfumeCategories.js'
 
 /* import logofooter from "../assets/logofooter.png"; */
 import { storeConfig } from "../config/storeConfig";
@@ -16,7 +16,7 @@ const Footer = () => {
     const navigate = useNavigate();
     return (
         <div>
-            <footer className="bg-[#0b0b0d] text-gray-300 py-12 font-serif">
+            <footer className="bg-[#0B0B0B] text-gray-300 py-12 font-serif">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-8 text-center md:text-left">
                         <div className="flex flex flex-col items-center">

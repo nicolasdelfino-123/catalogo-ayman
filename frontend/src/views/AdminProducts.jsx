@@ -7,20 +7,31 @@ import AdminBudgetToolbar from "../components/admin/AdminBudgetToolbar.jsx";
 import AdminBudgetSelectionCell from "../components/admin/AdminBudgetSelectionCell.jsx";
 import AdminBudgetModal from "../components/admin/AdminBudgetModal.jsx";
 import {
+    CATEGORY_GROUPS,
     CATEGORY_ID_TO_NAME as ID_TO_CATEGORY_NAME,
     getDisplayCategoryName,
     mapCategoryIdFromName,
-    PERFUME_CATEGORY_DEFINITIONS,
-    PERFUME_CATEGORY_NAMES,
 } from "../utils/perfumeCategories.js";
 
 
 
 
-const normalizeCategoryLabel = (value = "") =>
-    String(value || "")
-        .trim()
-        .toLowerCase();
+const getAdminOptionLabel = (group, category) =>
+    `${group.slug === "electrodomesticos" ? "E" : group.name} - ${category.name}`;
+
+const ADMIN_CATEGORY_OPTIONS = CATEGORY_GROUPS.flatMap((group) =>
+    group.children?.length
+        ? group.children.map((category) => ({
+            id: category.id,
+            label: getAdminOptionLabel(group, category),
+        }))
+        : [{ id: group.id, label: group.name }]
+);
+
+const getAdminCategoryLabel = (categoryId) =>
+    ADMIN_CATEGORY_OPTIONS.find((category) => Number(category.id) === Number(categoryId))?.label ||
+    ID_TO_CATEGORY_NAME[categoryId] ||
+    "Sin categoría";
 
 const parseFlexibleDecimal = (value) => {
     if (value === "" || value === null || value === undefined) return null;
@@ -410,7 +421,7 @@ const clearPricingInputs = (state) => ({
 // ----- Componente principal -----
 export default function AdminProducts() {
     const [products, setProducts] = useState([])
-    const categories = PERFUME_CATEGORY_NAMES
+    const categories = ADMIN_CATEGORY_OPTIONS
     const [form, setForm] = useState(null)
     const [q, setQ] = useState("")
     const [selectedCategory, setSelectedCategory] = useState("Todos")
@@ -1112,7 +1123,7 @@ export default function AdminProducts() {
 
         const matchesCategory =
             selectedCategory === "Todos" ||
-            normalizeCategoryLabel(ID_TO_CATEGORY_NAME[p.category_id]) === normalizeCategoryLabel(selectedCategory); // 👈
+            Number(p.category_id) === Number(selectedCategory);
 
         const isActive = Boolean(p?.is_active);
         const matchesStatus =
@@ -1138,7 +1149,7 @@ export default function AdminProducts() {
             ? { key: "search", label: `Busqueda: ${q.trim()}`, onClear: () => setQ("") }
             : null,
         selectedCategory !== "Todos"
-            ? { key: "category", label: `Categoria: ${selectedCategory}`, onClear: () => setSelectedCategory("Todos") }
+            ? { key: "category", label: `Categoria: ${getAdminCategoryLabel(selectedCategory)}`, onClear: () => setSelectedCategory("Todos") }
             : null,
         selectedStatus !== "todos"
             ? {
@@ -1227,8 +1238,8 @@ export default function AdminProducts() {
                     >
                         <option value="Todos">Todas las categorías</option>
                         {categories.map((cat) => (
-                            <option key={cat} value={cat}>
-                                {cat}
+                            <option key={cat.id} value={cat.id}>
+                                {cat.label}
                             </option>
                         ))}
                     </select>
@@ -1356,7 +1367,7 @@ export default function AdminProducts() {
                                         stock: it.stock || 0,
                                         image_url: it.image_url || "",
                                         category_id: catId,
-                                        category_name: ID_TO_CATEGORY_NAME[catId] || "Masculinos",
+                                        category_name: ID_TO_CATEGORY_NAME[catId] || "Mujer",
                                         flavor_enabled: catalog.length > 0,
                                         flavor_catalog: catalog, // ✅ catálogo completo para edición
                                         flavors: catalog.map((x) => x.name), // ✅ todos los sabores como activos por defecto
@@ -2499,7 +2510,7 @@ export default function AdminProducts() {
                                 setForm({
                                     ...form,
                                     category_id: categoryId,
-                                    category_name: ID_TO_CATEGORY_NAME[categoryId] || "Masculinos",
+                                    category_name: ID_TO_CATEGORY_NAME[categoryId] || "Mujer",
                                     flavor_enabled: show,
                                     flavors: show ? form.flavors || [] : [],
                                 })
@@ -2507,11 +2518,21 @@ export default function AdminProducts() {
                             required
                         >
                             <option value="">Selecciona categoría</option>
-                            {PERFUME_CATEGORY_DEFINITIONS.map((category) => (
-                                <option key={category.id} value={category.id}>
-                                    {category.name}
-                                </option>
-                            ))}
+                            {CATEGORY_GROUPS.map((group) =>
+                                group.children?.length ? (
+                                    <optgroup key={group.slug} label={group.name}>
+                                        {group.children.map((category) => (
+                                            <option key={category.id} value={category.id}>
+                                                {getAdminOptionLabel(group, category)}
+                                            </option>
+                                        ))}
+                                    </optgroup>
+                                ) : (
+                                    <option key={group.id} value={group.id}>
+                                        {group.name}
+                                    </option>
+                                )
+                            )}
                         </select>
 
                         {/* Sabores solo para 1 y 3 */}

@@ -28,7 +28,7 @@ export default function LoginAdmin() {
             }
             navigate("/admin/products")
         } else {
-            setError(result.error || "Credenciales inválidas o sin permisos de admin")
+            setError(result.error || result.message || "Credenciales inválidas o sin permisos de admin")
         }
         setLoading(false)
     }

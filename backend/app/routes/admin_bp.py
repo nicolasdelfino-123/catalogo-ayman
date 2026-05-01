@@ -25,13 +25,29 @@ admin_bp = Blueprint('admin', __name__)
 # Catálogo de categorías esperado por el frontend actual.
 # Mantener IDs estables evita romper FK y filtros ya existentes.
 CATEGORY_ID_TO_NAME = {
-    1: "Perfumes masculinos",
-    2: "Femeninos",
+    1: "Mujer",
+    2: "Hombre",
     3: "Unisex",
-    4: "Cremas",
-    5: "Body splash victoria secret",
-    6: "Perfumes",  # compatibilidad legacy
-    7: "Perfumes de Diseñador",
+    4: "Hombre",
+    5: "Mujer",
+    6: "Unisex",
+    7: "Cuidado personal",
+    8: "Body splash",
+    20: "Línea blanca",
+    21: "Licuadoras",
+    22: "Cafeteras",
+    23: "Ollas de presión",
+    24: "Sartenes eléctricos",
+    25: "Estufas gas",
+    26: "Estufas eléctricas",
+    27: "Batidoras",
+    28: "Ollas y sartenes",
+    29: "Arroceras",
+    30: "Ollas multiuso",
+    31: "Freidoras de aire",
+    32: "Sandwicheras",
+    33: "Procesador de alimentos",
+    34: "Extractor de jugos",
 }
 
 def _ensure_category_exists(category_id: int):

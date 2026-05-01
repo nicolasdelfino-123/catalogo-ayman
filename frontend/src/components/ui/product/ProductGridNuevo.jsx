@@ -10,7 +10,7 @@ import SidebarFiltersNuevo from "./SidebarFiltersNuevo.jsx";     // o "./Sidebar
 import Modal from "../../Modal.jsx";
 import { ChevronRight, ChevronLeft, ArrowUpDown } from "lucide-react";
 import { withWholesale } from "../../../utils/wholesaleMode.js";
-import { getNormalizedCategoryId, SLUG_TO_ID, SLUG_TO_NAME } from "../../../utils/perfumeCategories.js";
+import { getNormalizedCategoryId, SLUG_TO_IDS, SLUG_TO_NAME } from "../../../utils/perfumeCategories.js";
 
 // -----------------------------
 // Persistencia ligera en sessionStorage
@@ -149,7 +149,11 @@ export default function ProductGridNuevo({ category, hideFilters = false }) {
 
 
     const currentSlug = slug;
-    const currentCategoryId = currentSlug ? SLUG_TO_ID[currentSlug] : null;
+    const currentCategoryIds = useMemo(
+        () => (currentSlug ? SLUG_TO_IDS[currentSlug] || [] : []),
+        [currentSlug]
+    );
+    const hasCurrentCategory = currentCategoryIds.length > 0;
 
     const searchTerm = store.productSearch || "";
     const setSearchTerm = (val) => actions.searchProducts(val);
@@ -265,16 +269,16 @@ export default function ProductGridNuevo({ category, hideFilters = false }) {
         const products = store.products || [];
 
         // Home / destacados
-        if (hideFilters && !currentCategoryId) return products.slice(0, 12);
+        if (hideFilters && !hasCurrentCategory) return products.slice(0, 12);
 
         // Todos
-        if (!currentCategoryId) return products;
+        if (!hasCurrentCategory) return products;
 
         // Categoría actual
         return products.filter(
-            (p) => getNormalizedCategoryId(p) === Number(currentCategoryId)
+            (p) => currentCategoryIds.includes(getNormalizedCategoryId(p))
         );
-    }, [store.products, currentCategoryId, slug, category, hideFilters]);
+    }, [store.products, currentCategoryIds, hasCurrentCategory, slug, category, hideFilters]);
 
     // -----------------------------
     // Opciones de filtros
@@ -494,7 +498,7 @@ export default function ProductGridNuevo({ category, hideFilters = false }) {
         }
     };
 
-    const pageTitle = currentCategoryId
+    const pageTitle = hasCurrentCategory
         ? SLUG_TO_NAME?.[currentSlug] || "Todos los Productos"
         : category || "Todos los Productos";
 
@@ -578,14 +582,14 @@ export default function ProductGridNuevo({ category, hideFilters = false }) {
             {/* Breadcrumb */}
             {!hideFilters && (
                 <nav
-                    className="flex items-center text-sm font-serif text-stone-500 mb-4 tracking-wide"
+                    className="mt-12 flex items-center text-sm font-serif text-stone-500 mb-4 tracking-wide md:mt-0"
                     aria-label="Breadcrumb"
                 >
                     <Link to="/" className="hover:text-[#d4af37] transition-colors">
                         Inicio
                     </Link>
 
-                    {currentCategoryId && (
+                    {hasCurrentCategory && (
                         <>
                             <ChevronRight size={16} className="mx-2" />
                             <span className="font-serif text-[#232325] font-semibold">{pageTitle}</span>
