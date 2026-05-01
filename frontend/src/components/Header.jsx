@@ -418,11 +418,12 @@ export default function Header() {
 
                 {/* Dropdown Menu */}
                 <div
-                  className={`absolute left-0 top-full -mt-px w-[38rem] bg-[#111113]
+                  className={`absolute left-0 top-full -mt-px bg-[#111113]
   rounded-b-xl rounded-t-none
   shadow-2xl border border-amber-500/20 border-t-0
   backdrop-blur-lg z-50 overflow-hidden
   transition-all duration-200 ease-out
+  ${activeProductCategory?.route === "/categoria/electrodomesticos" ? "w-[48rem]" : "w-[38rem]"}
   ${productsDropdownOpen ? "opacity-100 translate-y-0 visible" : "opacity-0 -translate-y-2 invisible"}
 `}
                 >
@@ -484,19 +485,21 @@ export default function Header() {
                           <div className="px-5 pb-2 text-[13px] uppercase tracking-wider text-gray-500">
                             {activeProductCategory.name}
                           </div>
-                          {activeProductCategory.children.map((child) => (
-                            <Link
-                              key={child.route}
-                              to={withWholesale(child.route)}
-                              className="block px-5 py-3 text-[15px] normal-case tracking-normal text-gray-300 hover:text-amber-300 hover:bg-[#1a1a1d] transition-colors"
-                              onClick={() => {
-                                window.scrollTo({ top: 0, behavior: "smooth" });
-                                setProductsDropdownOpen(false);
-                              }}
-                            >
-                              {child.name}
-                            </Link>
-                          ))}
+                          <div className={activeProductCategory.route === "/categoria/electrodomesticos" ? "grid grid-cols-2 gap-x-1" : ""}>
+                            {activeProductCategory.children.map((child) => (
+                              <Link
+                                key={child.route}
+                                to={withWholesale(child.route)}
+                                className="block whitespace-nowrap px-5 py-3 text-[15px] normal-case tracking-normal text-gray-300 hover:text-amber-300 hover:bg-[#1a1a1d] transition-colors"
+                                onClick={() => {
+                                  window.scrollTo({ top: 0, behavior: "smooth" });
+                                  setProductsDropdownOpen(false);
+                                }}
+                              >
+                                {child.name}
+                              </Link>
+                            ))}
+                          </div>
                         </>
                       ) : (
                         <div className="px-5 py-3 text-[15px] text-gray-500">Selecciona una categoría</div>
