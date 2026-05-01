@@ -472,7 +472,7 @@ export default function Header() {
                               : "text-gray-200 hover:text-amber-300 hover:bg-[#1a1a1d]"
                               }`}
                           >
-                            <span>{category.name}</span>
+                            <span>{category.name.toUpperCase()}</span>
                             <span aria-hidden="true" className="text-lg leading-none">›</span>
                           </button>
                         );
@@ -483,7 +483,7 @@ export default function Header() {
                       {activeProductCategory?.children?.length > 0 ? (
                         <>
                           <div className="px-5 pb-2 text-[13px] uppercase tracking-wider text-gray-500">
-                            {activeProductCategory.name}
+                            {activeProductCategory.name.toUpperCase()}
                           </div>
                           <div className={activeProductCategory.route === "/categoria/electrodomesticos" ? "grid grid-cols-2 gap-x-1" : ""}>
                             {activeProductCategory.children.map((child) => (
