@@ -26,6 +26,7 @@ export default function InicioNuevo() {
     const location = useLocation();
     const navigate = useNavigate();
     const banner = `/${storeConfig.media.heroImage}`;
+    const banner2 = `/${storeConfig.media.heroImage2}`;
 
     useEffect(() => {
         if (actions?.fetchProducts) {
@@ -106,15 +107,16 @@ export default function InicioNuevo() {
                     {/* IMAGEN SIN ALTURA FIJA */}
                     <div className="w-full">
                         <img
-                            src={banner}
+                            src={banner2}
                             alt="banner"
                             className="
-                w-full
-                h-auto
-                object-contain   /* 🔥 CLAVE: NO RECORTA */
-                brightness-110
-                saturate-110
-                "
+    w-full
+    h-auto
+    object-contain
+    brightness-110
+    saturate-110
+    mt-6
+  "
                         />
                     </div>
 
@@ -122,9 +124,9 @@ export default function InicioNuevo() {
                     <div className="
             bg-black
             px-5
-            py-6
+            py-0
             sm:px-6
-            sm:py-7
+            sm:py-0
             
 
             flex flex-col items-center justify-center
@@ -171,6 +173,7 @@ export default function InicioNuevo() {
         items-end
         justify-center
         overflow-hidden
+        
     ">
 
                     <div
@@ -185,7 +188,7 @@ export default function InicioNuevo() {
                 lg:bg-[position:center_-200px]
 
                 xl:bg-[length:100vw_auto]
-                xl:bg-[position:center_-250px]
+                xl:bg-[position:center_-10px]
 
                 2xl:bg-[length:100vw_auto]
                 2xl:bg-[position:center_-80px]
