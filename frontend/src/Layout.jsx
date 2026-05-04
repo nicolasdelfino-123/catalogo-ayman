@@ -170,6 +170,9 @@ const Layout = () => {
           {/* Productos (NUEVO GRID) */}
           <Route path="/products" element={<ProductGridNuevo />} />
           <Route path="/categoria/:slug" element={<ProductGridNuevo />} />
+          <Route path="/arabes" element={<Navigate to="/categoria/arabes" replace />} />
+          <Route path="/tradicionales" element={<Navigate to="/categoria/tradicionales" replace />} />
+          <Route path="/electrodomesticos" element={<Navigate to="/categoria/electrodomesticos" replace />} />
 
           {/* Mayorista productos (NUEVO GRID) */}
           {/*     <Route path="/mayorista/products" element={<ProductGridNuevo />} /> */}
@@ -180,7 +183,7 @@ const Layout = () => {
           {/*   <Route path="/mayorista" element={<Mayorista />} /> */}
 
           <Route path="/mayorista/products" element={<Mayorista />} />
-          <Route path="/mayorista" element={<Navigate to="/mayorista/products" replace />} />
+          <Route path="/mayorista" element={<InicioNuevo />} />
 
           {/* Mayorista inicio */}
           <Route path="/mayorista/inicio" element={<InicioNuevo />} />

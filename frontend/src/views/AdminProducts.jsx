@@ -316,6 +316,7 @@ function FlavorPills({ catalog = [], onChange }) {
 
 // arriba, junto a otros useRef/useState:
 const API = import.meta.env.VITE_BACKEND_URL?.replace(/\/+$/, "") || "";
+const MAX_HOME_FEATURED_PRODUCTS = 12;
 
 // Normaliza paths viejos
 const normalizeImagePath = (u = "") => {
@@ -450,6 +451,8 @@ export default function AdminProducts() {
     const [uploadingImage, setUploadingImage] = useState(false);
     const [uploadingImageLabel, setUploadingImageLabel] = useState("");
     const [savingProduct, setSavingProduct] = useState(false);
+    const [savingFeaturedId, setSavingFeaturedId] = useState(null);
+    const [featuredProductIds, setFeaturedProductIds] = useState([]);
 
 
 
@@ -480,12 +483,18 @@ export default function AdminProducts() {
 
     const fetchAll = async () => {
         try {
-            const res = await fetch(`${API}/admin/products`, {
-                headers: { Authorization: `Bearer ${token}` },
-            })
+            const headers = { Authorization: `Bearer ${token}` };
+            const [res, featuredRes] = await Promise.all([
+                fetch(`${API}/admin/products`, { headers }),
+                fetch(`${API}/admin/home-featured-products`, { headers }).catch(() => null),
+            ]);
             if (res.ok) {
                 const data = await res.json()
                 setProducts(data || [])
+            }
+            if (featuredRes?.ok) {
+                const data = await featuredRes.json();
+                setFeaturedProductIds((data?.product_ids || []).map(Number));
             }
         } catch (error) {
             console.error("Error fetching products:", error)
@@ -495,6 +504,49 @@ export default function AdminProducts() {
     useEffect(() => {
         fetchAll()
     }, [])
+
+    const persistFeaturedSelection = async (nextIds) => {
+        const res = await fetch(`${API}/admin/home-featured-products`, {
+            method: "PUT",
+            headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ product_ids: nextIds }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+            throw new Error(data?.error || "No se pudo actualizar la selección de Inicio");
+        }
+        return (data?.product_ids || []).map(Number);
+    };
+
+    const toggleFeaturedProduct = async (productId, checked) => {
+        const isSelected = featuredProductIds.includes(productId);
+        if (checked === isSelected) return;
+
+        if (checked && featuredProductIds.length >= MAX_HOME_FEATURED_PRODUCTS) {
+            alert(`Solo podés seleccionar hasta ${MAX_HOME_FEATURED_PRODUCTS} productos para Inicio.`);
+            return;
+        }
+
+        const nextIds = checked
+            ? [...featuredProductIds, productId]
+            : featuredProductIds.filter((id) => Number(id) !== Number(productId));
+
+        setSavingFeaturedId(productId);
+        try {
+            setFeaturedProductIds(nextIds);
+            const savedIds = await persistFeaturedSelection(nextIds);
+            setFeaturedProductIds(savedIds);
+        } catch (error) {
+            console.error(error);
+            setFeaturedProductIds(featuredProductIds);
+            alert(error.message || "No se pudo actualizar la selección de Inicio");
+        } finally {
+            setSavingFeaturedId(null);
+        }
+    };
 
     const startEditPrice = (p, currentPrice) => {
         setEditingPriceId(p.id);
@@ -888,7 +940,7 @@ export default function AdminProducts() {
                 if (u.startsWith("/")) return normalizeImagePath(u); // relativo válido → normaliza /public
                 return "";                                     // invalida textos sueltos (evita 404 /frutal)
             })();
-            const { image_urls, volume_stock, ...cleanForm } = form;
+            const { image_urls, volume_stock, show_on_home, ...cleanForm } = form;
             const allVolumeOptions = normalizeVolumeOptions(form.volume_options || [], { keepWithoutMl: true });
             const fallbackRetail = Number(
                 allVolumeOptions.find((row) => Number(row?.price) > 0)?.price
@@ -905,6 +957,12 @@ export default function AdminProducts() {
                 : Number(form.stock ?? 0);
             const directRetail = parseFlexibleDecimal(form.price);
             const directWholesale = parseFlexibleDecimal(form.price_wholesale);
+            const wantsHome = Boolean(form.show_on_home);
+            const selectedHomeIds = featuredProductIds.filter((id) => Number(id) !== Number(form.id));
+            if (wantsHome && selectedHomeIds.length >= MAX_HOME_FEATURED_PRODUCTS) {
+                alert(`Solo podés seleccionar hasta ${MAX_HOME_FEATURED_PRODUCTS} productos para Inicio.`);
+                return;
+            }
             const payload = {
                 ...cleanForm,
                 price:
@@ -945,10 +1003,13 @@ export default function AdminProducts() {
                 return;
             }
 
+            let savedProductId = form.id;
+
             // ✅ Si es creación, ATAMOS las imágenes subidas antes de tener id
             if (!form.id) {
                 const newProduct = json.product; // tu create_product devuelve { product: ... }
                 const newId = newProduct?.id;
+                savedProductId = newId;
                 if (newId) {
                     // Extraer ids de URLs tipo "/public/img/123"
                     const ids = Array.isArray(form.image_urls)
@@ -975,6 +1036,14 @@ export default function AdminProducts() {
                         }).catch(() => { });
                     }
                 }
+            }
+
+            if (savedProductId) {
+                const nextFeaturedIds = wantsHome
+                    ? [...selectedHomeIds, savedProductId]
+                    : selectedHomeIds;
+                const savedIds = await persistFeaturedSelection(nextFeaturedIds);
+                setFeaturedProductIds(savedIds);
             }
 
             const selectedCategoryName =
@@ -1296,6 +1365,7 @@ export default function AdminProducts() {
                     onClick={() => setForm({
                         category_id: 1,
                         is_active: true,
+                        show_on_home: false,
 
                         image_url: "",
                         image_urls: [],
@@ -1373,6 +1443,7 @@ export default function AdminProducts() {
                                         flavors: catalog.map((x) => x.name), // ✅ todos los sabores como activos por defecto
                                         flavor_stock_mode: false, // por defecto
                                         is_active: true,
+                                        show_on_home: false,
                                         source_url: it.source_url || "",
                                     }
                                 })
@@ -1427,6 +1498,15 @@ export default function AdminProducts() {
             )}
 
             {/* Tabla */}
+            <div className="mb-3 flex flex-col gap-1 text-sm sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+                <div className="text-gray-700">
+                    Productos en Inicio: <span className="font-semibold">{featuredProductIds.length}</span> / {MAX_HOME_FEATURED_PRODUCTS}
+                </div>
+                <div className="text-xs text-gray-500 sm:text-right">
+                    <div>Tildá hasta {MAX_HOME_FEATURED_PRODUCTS} productos para mostrarlos en Inicio.</div>
+                    <div>Productos en esta página: {filtered.length}</div>
+                </div>
+            </div>
             <div ref={resultsRef} className="overflow-x-auto">
                 <table className="w-full text-sm border">
                     <thead className="bg-gray-50">
@@ -1453,6 +1533,7 @@ export default function AdminProducts() {
 
                             <th className="hidden p-2 md:table-cell">Stock</th>
                             <th className="hidden p-2 md:table-cell">Categoría</th>
+                            <th className="p-2 text-center">Inicio</th>
                             {/*  <th className="p-2">Sabores</th> */}
                             <th className="hidden p-2 md:table-cell">Estado</th>
                             <th className="p-2"></th>
@@ -1472,7 +1553,9 @@ export default function AdminProducts() {
                                     ? Number(selectedOption.stock)
                                     : (Number.isFinite(Number(p?.stock)) ? Number(p.stock) : 0);
                             const isMobileExpanded = expandedMobileProductId === p.id;
-                            const tableColSpan = budgetMode ? 13 : 11;
+                            const tableColSpan = budgetMode ? 14 : 12;
+                            const isFeaturedSelected = featuredProductIds.includes(Number(p.id));
+                            const featuredLimitReached = featuredProductIds.length >= MAX_HOME_FEATURED_PRODUCTS;
 
                             return (
                                 <Fragment key={p.id}>
@@ -1566,7 +1649,7 @@ export default function AdminProducts() {
                                                 </div>
                                             ) : (
                                                 <div className="flex items-center justify-center gap-2">
-                                                    <span className="whitespace-nowrap tabular-nums">$ {Number(retailShown).toLocaleString("es-AR")}</span>
+                                                    <span className="whitespace-nowrap tabular-nums">₡ {Number(retailShown).toLocaleString("es-AR")}</span>
                                                     <button
                                                         type="button"
                                                         className="px-2 py-1 border rounded hover:bg-gray-50"
@@ -1611,7 +1694,7 @@ export default function AdminProducts() {
                                             ) : (
                                                 <div className="flex items-center justify-center gap-2">
                                                     <span className="whitespace-nowrap tabular-nums">
-                                                        {wholesaleShown ? `$ ${formatPrice(wholesaleShown)}` : "—"}
+                                                        {wholesaleShown ? `₡ ${formatPrice(wholesaleShown)}` : "—"}
                                                     </span>
                                                     <button
                                                         type="button"
@@ -1669,6 +1752,23 @@ export default function AdminProducts() {
                                             )}
                                         </td>
                                         <td className="hidden p-2 text-center md:table-cell">{ID_TO_CATEGORY_NAME[p.category_id]}</td>
+                                        <td className="p-2 text-center">
+                                            <input
+                                                type="checkbox"
+                                                checked={isFeaturedSelected}
+                                                disabled={Boolean(savingFeaturedId) || (!isFeaturedSelected && featuredLimitReached)}
+                                                onChange={(e) => toggleFeaturedProduct(p.id, e.target.checked)}
+                                                aria-label={isFeaturedSelected ? "Quitar de Inicio" : "Agregar a Inicio"}
+                                                title={
+                                                    isFeaturedSelected
+                                                        ? "Quitar de Inicio"
+                                                        : featuredLimitReached
+                                                            ? `Ya hay ${MAX_HOME_FEATURED_PRODUCTS} seleccionados`
+                                                            : "Mostrar en Inicio"
+                                                }
+                                                className="h-4 w-4 cursor-pointer accent-blue-600 disabled:cursor-not-allowed"
+                                            />
+                                        </td>
                                         <td className="hidden p-2 text-center md:table-cell">
                                             {/* Toggle visual Estado con aviso solo en filtro activos/inactivos */}
                                             <button
@@ -1819,6 +1919,7 @@ export default function AdminProducts() {
                                                         flavor_catalog: catalog,
                                                         flavor_enabled: p.flavor_enabled ?? (catalog.length > 0),
                                                         flavor_stock_mode: flavorStockMode,
+                                                        show_on_home: featuredProductIds.includes(Number(p.id)),
                                                         stock: flavorStockMode ? sum : (Number.isFinite(Number(p.stock)) ? Number(p.stock) : 0),
                                                     });
                                                 }}
@@ -1871,6 +1972,26 @@ export default function AdminProducts() {
                                                     <div>
                                                         <div className="text-xs uppercase tracking-wide text-gray-500">Categoria</div>
                                                         <div className="mt-1">{ID_TO_CATEGORY_NAME[p.category_id]}</div>
+                                                    </div>
+                                                    <div>
+                                                        <div className="text-xs uppercase tracking-wide text-gray-500">Inicio</div>
+                                                        <div className="mt-1">
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={isFeaturedSelected}
+                                                                disabled={Boolean(savingFeaturedId) || (!isFeaturedSelected && featuredLimitReached)}
+                                                                onChange={(e) => toggleFeaturedProduct(p.id, e.target.checked)}
+                                                                aria-label={isFeaturedSelected ? "Quitar de Inicio" : "Agregar a Inicio"}
+                                                                title={
+                                                                    isFeaturedSelected
+                                                                        ? "Quitar de Inicio"
+                                                                        : featuredLimitReached
+                                                                            ? `Ya hay ${MAX_HOME_FEATURED_PRODUCTS} seleccionados`
+                                                                            : "Mostrar en Inicio"
+                                                                }
+                                                                className="h-4 w-4 cursor-pointer accent-blue-600 disabled:cursor-not-allowed"
+                                                            />
+                                                        </div>
                                                     </div>
                                                     <div>
                                                         <div className="text-xs uppercase tracking-wide text-gray-500">Desc. corta</div>
@@ -2154,7 +2275,7 @@ export default function AdminProducts() {
 
                                 <div className="relative">
                                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-                                        $
+                                        ₡
                                     </span>
 
                                     <input
@@ -2181,7 +2302,7 @@ export default function AdminProducts() {
 
                                 <div className="relative">
                                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-                                        US$
+                                        ₡
                                     </span>
 
                                     <input
@@ -2544,6 +2665,22 @@ export default function AdminProducts() {
                                 onChange={(e) => setForm({ ...form, is_active: e.target.checked })}
                             />
                             Producto activo
+                        </label>
+                        <label className="flex items-center gap-2">
+                            <input
+                                type="checkbox"
+                                checked={Boolean(form.show_on_home)}
+                                disabled={!Boolean(form.show_on_home) && featuredProductIds.filter((id) => Number(id) !== Number(form.id)).length >= MAX_HOME_FEATURED_PRODUCTS}
+                                onChange={(e) => {
+                                    const selectedHomeIds = featuredProductIds.filter((id) => Number(id) !== Number(form.id));
+                                    if (e.target.checked && selectedHomeIds.length >= MAX_HOME_FEATURED_PRODUCTS) {
+                                        alert(`Solo podés seleccionar hasta ${MAX_HOME_FEATURED_PRODUCTS} productos para Inicio.`);
+                                        return;
+                                    }
+                                    setForm({ ...form, show_on_home: e.target.checked });
+                                }}
+                            />
+                            Mandar al inicio
                         </label>
 
                         <div className="flex gap-2 justify-end">

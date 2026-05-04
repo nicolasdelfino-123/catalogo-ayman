@@ -1,7 +1,7 @@
 import { useState, useContext } from "react"
 import { Context } from "../js/store/appContext"
 import { useNavigate, useLocation } from "react-router-dom"
-import { formatPrice } from "../utils/price.js";
+import { formatPrice, PRICE_SYMBOL } from "../utils/price.js";
 import { getDisplayCategoryName } from "../utils/perfumeCategories.js";
 
 
@@ -59,7 +59,7 @@ export default function ProductCard({ product }) {
   const finalPrice = isWholesale
     ? (wholesalePrice > 0 ? wholesalePrice : null)
     : retailPrice;
-  const pricePrefix = isWholesale ? "$" : "$";
+  const pricePrefix = PRICE_SYMBOL;
 
 
 

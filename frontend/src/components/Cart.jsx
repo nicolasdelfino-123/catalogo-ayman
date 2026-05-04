@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { Context } from "../js/store/appContext.jsx";
 import { useNavigate, useLocation } from "react-router-dom";
 import { storeConfig } from "../config/storeConfig.js";
+import { PRICE_SYMBOL } from "../utils/price.js";
 
 
 const API = import.meta.env.VITE_BACKEND_URL?.replace(/\/+$/, "") || "";
@@ -50,7 +51,7 @@ export default function Cart({ isOpen: controlledOpen, onClose: controlledOnClos
   const navigate = useNavigate();
   const location = useLocation();
   const isWholesale = location.pathname.startsWith("/mayorista");
-  const pricePrefix = isWholesale ? "$" : "$";
+  const pricePrefix = PRICE_SYMBOL;
 
 
   const isRouteMode = controlledOpen === undefined && controlledOnClose === undefined;

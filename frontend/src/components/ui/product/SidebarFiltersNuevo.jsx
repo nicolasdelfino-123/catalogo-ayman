@@ -3,6 +3,7 @@ import { Menu, X } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { withWholesale } from "../../../utils/wholesaleMode"; // ✅ ruta correcta desde /components/product
 import { CATEGORY_GROUPS as CATEGORIES } from "../../../utils/perfumeCategories.js";
+import { PRICE_SYMBOL } from "../../../utils/price.js";
 
 export default function SidebarFiltersNuevo({
     currentCategorySlug,
@@ -98,10 +99,10 @@ export default function SidebarFiltersNuevo({
                 const maxLabel = currentMax.toLocaleString("es-AR");
                 const priceLabel =
                     minActive && maxActive
-                        ? `$${minLabel} - $${maxLabel}`
+                        ? `${PRICE_SYMBOL}${minLabel} - ${PRICE_SYMBOL}${maxLabel}`
                         : minActive
-                            ? `Desde $${minLabel}`
-                            : `Hasta $${maxLabel}`;
+                            ? `Desde ${PRICE_SYMBOL}${minLabel}`
+                            : `Hasta ${PRICE_SYMBOL}${maxLabel}`;
 
                 tags.push({
                     type: "price",
@@ -204,8 +205,7 @@ export default function SidebarFiltersNuevo({
                                 <button
                                     onClick={() => {
                                         if (hasChildren) {
-                                            setExpandedCategorySlug((current) => current === c.slug ? "" : c.slug);
-                                            return;
+                                            setExpandedCategorySlug(c.slug);
                                         }
                                         if (onSelectCategory) {
                                             onSelectCategory(c.slug);
@@ -214,7 +214,9 @@ export default function SidebarFiltersNuevo({
                                             const base = isWholesale ? "/mayorista" : "";
                                             navigate(`${base}/categoria/${c.slug}`);
                                         }
-                                        setOpen(false);
+                                        if (!hasChildren) {
+                                            setOpen(false);
+                                        }
                                     }}
                                     className={`flex w-full items-center justify-between text-left py-2 border-b border-stone-200 font-serif transition-all duration-300 focus:outline-none ${active
                                         ? "text-[#232325] font-semibold border-[#232325]"
@@ -276,8 +278,8 @@ export default function SidebarFiltersNuevo({
                 </h4>
 
                 <div className="flex items-center justify-between text-sm mb-2">
-                    <span>${p.min.toLocaleString("es-AR")}</span>
-                    <span>${p.max.toLocaleString("es-AR")}</span>
+                    <span>{PRICE_SYMBOL}{p.min.toLocaleString("es-AR")}</span>
+                    <span>{PRICE_SYMBOL}{p.max.toLocaleString("es-AR")}</span>
                 </div>
                 <div className="flex gap-2 mt-3">
                     <button

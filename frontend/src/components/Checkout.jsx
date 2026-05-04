@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { Context } from '../js/store/appContext'
 import { initMercadoPago, Wallet } from '@mercadopago/sdk-react'
 import logo from '@/assets/mp-logo1.png';
+import { PRICE_SYMBOL } from '../utils/price.js';
 
 
 const provincesAR = [
@@ -849,7 +850,7 @@ const Checkout = () => {
                                             <p className="text-gray-600 text-sm">Cantidad: {item.quantity}</p>
                                         </div>
                                     </div>
-                                    <p className="font-semibold">${(item.price * item.quantity).toLocaleString()}</p>
+                                    <p className="font-semibold">{PRICE_SYMBOL}{(item.price * item.quantity).toLocaleString()}</p>
                                 </div>
                             ))}
                         </div>
@@ -857,19 +858,19 @@ const Checkout = () => {
                         <div className="border-t pt-4 mt-4 space-y-2">
                             <div className="flex justify-between">
                                 <span>Subtotal:</span>
-                                <span>${subtotal.toLocaleString()}</span>
+                                <span>{PRICE_SYMBOL}{subtotal.toLocaleString()}</span>
                             </div>
                             <div className="flex justify-between">
                                 <span>Envío:</span>
                                 <span className={shippingCost === 0 ? "text-green-600" : ""}>
-                                    {shippingCost === 0 ? "Gratis" : `$${shippingCost.toLocaleString()}`}
+                                    {shippingCost === 0 ? "Gratis" : `${PRICE_SYMBOL}${shippingCost.toLocaleString()}`}
                                 </span>
                             </div>
 
 
                             <div className="flex justify-between text-lg font-bold border-t pt-2">
                                 <span>Total:</span>
-                                <span>${total.toLocaleString()}</span>
+                                <span>{PRICE_SYMBOL}{total.toLocaleString()}</span>
                             </div>
                         </div>
                     </div>

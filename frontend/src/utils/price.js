@@ -1,3 +1,5 @@
+export const PRICE_SYMBOL = "₡";
+
 export const formatPrice = (value) => {
     if (value == null || value === "") return "";
 

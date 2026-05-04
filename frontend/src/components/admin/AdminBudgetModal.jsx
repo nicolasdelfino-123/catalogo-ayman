@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { formatPrice } from "../../utils/price.js";
+import { formatPrice, PRICE_SYMBOL } from "../../utils/price.js";
 
 const PRICE_MODE_RETAIL = "retail";
 const PRICE_MODE_WHOLESALE = "wholesale";
 const CUSTOM_QTY_VALUE = "custom";
+const PHONE_PREFIXES = ["506", "507"];
 
 const getBasePrice = (item, priceMode) => {
     if (priceMode === PRICE_MODE_WHOLESALE) {
@@ -68,13 +69,11 @@ const buildBudgetMessage = ({
     const lines = items.map((item) => {
         const price = Number(prices[item.id] ?? 0);
         const mlSuffix = item.mlLabel ? ` ${item.mlLabel}` : "";
-        const currency = priceMode === PRICE_MODE_WHOLESALE ? "$" : "$";
-        const totalLine = price > 0 ? ` - ${currency} ${formatPrice(price)}` : " - Consultar";
+        const totalLine = price > 0 ? ` - ${PRICE_SYMBOL} ${formatPrice(price)}` : " - Consultar";
         return `- ${item.quantity}x ${item.name}${mlSuffix}${totalLine}`;
     });
 
     const total = items.reduce((acc, item) => acc + (Number(prices[item.id] ?? 0) * Number(item.quantity || 0)), 0);
-    const currency = priceMode === PRICE_MODE_WHOLESALE ? "$" : "$";
 
     return [
         greeting,
@@ -83,7 +82,7 @@ const buildBudgetMessage = ({
         "",
         ...lines,
         "",
-        `Total: ${currency} ${formatPrice(total)}`,
+        `Total: ${PRICE_SYMBOL} ${formatPrice(total)}`,
         "",
         "Cualquier ajuste que necesites, te lo preparo.",
     ].join("\n");
@@ -100,6 +99,7 @@ export default function AdminBudgetModal({
     const [editingId, setEditingId] = useState(null);
     const [editingDraft, setEditingDraft] = useState("");
     const [customerName, setCustomerName] = useState("");
+    const [phonePrefix, setPhonePrefix] = useState("506");
     const [phone, setPhone] = useState("");
     const [showPreview, setShowPreview] = useState(false);
     const [manualItems, setManualItems] = useState([]);
@@ -130,6 +130,7 @@ export default function AdminBudgetModal({
 
         setPriceMode(PRICE_MODE_RETAIL);
         setCustomerName("");
+        setPhonePrefix("506");
         setPhone("");
         setShowPreview(false);
         setEditingId(null);
@@ -428,8 +429,6 @@ export default function AdminBudgetModal({
                         {budgetItems.map((item) => {
                             const priceValue = Number(prices[item.id] ?? 0);
                             const isEditing = editingId === item.id;
-                            const currency = priceMode === PRICE_MODE_WHOLESALE ? "$" : "$";
-
                             return (
                                 <div
                                     key={item.id}
@@ -487,7 +486,7 @@ export default function AdminBudgetModal({
                                         ) : (
                                             <div className="flex items-center gap-2 md:justify-end">
                                                 <span className="tabular-nums md:inline-flex md:items-center md:gap-1 md:whitespace-nowrap">
-                                                    {currency} {formatPrice(priceValue)}
+                                                    {PRICE_SYMBOL} {formatPrice(priceValue)}
                                                 </span>
                                                 <button
                                                     type="button"
@@ -531,14 +530,25 @@ export default function AdminBudgetModal({
                         <label className="block">
                             <span className="block text-sm font-medium text-stone-700 mb-1">WhatsApp del cliente</span>
                             <div className="flex items-center border rounded-lg overflow-hidden">
-                                <span className="px-3 py-2 bg-stone-50 text-stone-600 border-r">+54</span>
+                                <select
+                                    value={phonePrefix}
+                                    onChange={(e) => setPhonePrefix(e.target.value)}
+                                    className="border-r bg-stone-50 px-3 py-2 text-stone-700 outline-none"
+                                    aria-label="Prefijo de país"
+                                >
+                                    {PHONE_PREFIXES.map((prefix) => (
+                                        <option key={prefix} value={prefix}>
+                                            +{prefix}
+                                        </option>
+                                    ))}
+                                </select>
                                 <input
                                     type="text"
                                     inputMode="numeric"
                                     value={phone}
                                     onChange={(e) => setPhone(normalizeDigits(e.target.value))}
                                     className="w-full px-3 py-2 outline-none"
-                                    placeholder="35334793366"
+                                    placeholder="Número de WhatsApp"
                                 />
                             </div>
                         </label>
@@ -548,7 +558,7 @@ export default function AdminBudgetModal({
                         <div>
                             <div className="text-sm text-stone-500">Total estimado</div>
                             <div className="text-lg font-semibold text-stone-900 md:inline-flex md:items-center md:gap-1 md:whitespace-nowrap">
-                                {priceMode === PRICE_MODE_WHOLESALE ? "$" : "$"} {formatPrice(total)}
+                                {PRICE_SYMBOL} {formatPrice(total)}
                             </div>
                         </div>
 
@@ -565,7 +575,7 @@ export default function AdminBudgetModal({
                                 type="button"
                                 disabled={!canSend}
                                 onClick={() => {
-                                    const fullPhone = `54${normalizeDigits(phone)}`;
+                                    const fullPhone = `${phonePrefix}${normalizeDigits(phone)}`;
                                     const url = `https://wa.me/${fullPhone}?text=${encodeURIComponent(messagePreview)}`;
                                     window.open(url, "_blank", "noopener,noreferrer");
                                 }}

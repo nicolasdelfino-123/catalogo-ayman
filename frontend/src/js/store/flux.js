@@ -575,13 +575,22 @@ const getState = ({ getStore, getActions, setStore }) => {
 				setStore({ ...store, loading: true });
 
 				try {
-					const response = await fetch(`${backendUrl}/public/products`);
+					const [response, featuredResponse] = await Promise.all([
+						fetch(`${backendUrl}/public/products`),
+						fetch(`${backendUrl}/public/home-featured-products`).catch(() => null),
+					]);
 					if (!response.ok) {
 						throw new Error('Error al obtener productos');
 					}
 					const products = await response.json();
-					setStore({ ...store, products, loading: false });
-					return { success: true, data: products };
+					const featuredData = featuredResponse?.ok ? await featuredResponse.json() : { product_ids: [] };
+					const featuredIds = new Set((featuredData?.product_ids || []).map(Number));
+					const productsWithHomeFlag = products.map((product) => ({
+						...product,
+						show_on_home: featuredIds.has(Number(product.id)),
+					}));
+					setStore({ ...store, products: productsWithHomeFlag, loading: false });
+					return { success: true, data: productsWithHomeFlag };
 				} catch (error) {
 					console.error("Error fetching products:", error);
 					setStore({ ...store, loading: false });

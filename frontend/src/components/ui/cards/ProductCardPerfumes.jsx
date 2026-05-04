@@ -2,7 +2,7 @@ import { useState, useContext, useMemo, useEffect } from "react";
 import { Context } from "../../../js/store/appContext.jsx";
 import { useNavigate, useLocation } from "react-router-dom";
 import sinImagen from "@/assets/sin_imagen.jpg";
-import { formatPrice } from "../../../utils/price.js";
+import { formatPrice, PRICE_SYMBOL } from "../../../utils/price.js";
 import { getDisplayCategoryName } from "../../../utils/perfumeCategories.js";
 
 const API = import.meta.env.VITE_BACKEND_URL?.replace(/\/+$/, "") || "";
@@ -166,7 +166,7 @@ export default function ProductCardPerfumes({ product, returnTo, isGrid = true }
     const finalPrice = isWholesale
         ? (wholesalePrice > 0 ? wholesalePrice : null)
         : (retailPrice > 0 ? retailPrice : null);
-    const pricePrefix = isWholesale ? "$" : "$";
+    const pricePrefix = PRICE_SYMBOL;
     const displayCategoryName = getDisplayCategoryName(product);
 
     const stock = Number(selectedSize?.stock ?? product?.stock ?? 0);

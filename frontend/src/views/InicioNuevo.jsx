@@ -7,7 +7,6 @@ import banner from "../assets/banner_arabe.jpg";
 import Asesoria from "../components/Asesoria.jsx";
 import { storeConfig } from "../config/storeConfig";
 import perfumeImg from "../assets/latta_si.webp";
-import { getNormalizedCategoryId } from "../utils/perfumeCategories.js";
 
 import afnan from '../assets/afnan.webp'
 import al from '../assets/al.webp'
@@ -46,27 +45,9 @@ export default function InicioNuevo() {
 
     const MAP_EMBED = storeConfig.map.embed;
     const allProducts = store.products || [];
-    const getProductPrice = (product) => {
-        const price = Number(product?.price);
-        return Number.isFinite(price) ? price : Number.POSITIVE_INFINITY;
-    };
-    const isWomenFragrance = (product) => getNormalizedCategoryId(product) === 2;
-    const isMenFragrance = (product) => getNormalizedCategoryId(product) === 1;
-
-    const womenFeatured = allProducts
-        .filter(isWomenFragrance)
-        .sort((a, b) => getProductPrice(a) - getProductPrice(b))
-        .slice(0, 6);
-    const menFeatured = allProducts
-        .filter(isMenFragrance)
-        .sort((a, b) => getProductPrice(a) - getProductPrice(b))
-        .slice(0, 6);
-    const selectedFeaturedIds = new Set([...womenFeatured, ...menFeatured].map((p) => p.id));
-    const featuredProducts = [
-        ...womenFeatured,
-        ...menFeatured,
-        ...allProducts.filter((p) => !selectedFeaturedIds.has(p.id)).slice(0, Math.max(0, 12 - (womenFeatured.length + menFeatured.length))),
-    ].slice(0, 12);
+    const featuredProducts = allProducts
+        .filter((product) => Boolean(product?.show_on_home))
+        .slice(0, 12);
 
 
     useLayoutEffect(() => {
@@ -275,7 +256,7 @@ export default function InicioNuevo() {
             <section className="max-w-7xl mx-auto px-2 sm:px-4 py-12">
                 <div className="text-center mb-10">
                     <h2 className="text-2xl md:text-3xl font-serif font-semibold tracking-wide">
-                        Productos destacados
+                        Productos Destacados
                     </h2>
 
                     <div className="w-16 h-[2px] bg-amber-500 mx-auto mt-4"></div>
@@ -323,9 +304,9 @@ shadow-lg shadow-amber-500/20
             {/*  <section id="asesoria">
                 <Asesoria />
             </section> */}
-            <section className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16" id='asesoria'>
+            {/* <section className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16" id='asesoria'>
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-10 items-center">
-                    {/* Columna izquierda: texto */}
+         
                     <div className="md:col-span-1 text-center md:text-left">
                         <span className="inline-block text-lg tracking-wider font-semibold text-gray-700 bg-purple-50 border border-purple-100 rounded-full px-3 py-1">
                             ¡Contactanos!
@@ -343,7 +324,7 @@ shadow-lg shadow-amber-500/20
 
                         <div className="mt-6 flex justify-center md:justify-center gap-4">
 
-                            {/* Instagram */}
+             
                             <a
                                 href={IG_URL}
                                 target="_blank"
@@ -357,7 +338,7 @@ shadow-lg shadow-amber-500/20
                                 </svg>
                             </a>
 
-                            {/* WhatsApp */}
+                    
                             <a
                                 href={WA_URL}
                                 target="_blank"
@@ -373,11 +354,9 @@ shadow-lg shadow-amber-500/20
                         </div>
                     </div>
 
-                    {/* Divider central (sólo desktop) */}
+                 
                     <div className="hidden md:block h-full w-px bg-gradient-to-b from-transparent via-gray-300 to-transparent mx-auto" />
 
-                    {/* Columna derecha: mapa (oscuro por CSS) */}
-                    {/* Columna derecha: mapa (oscuro por CSS) */}
                     <div className="md:col-span-1">
                         <div className="rounded-xl overflow-hidden shadow-lg ring-1 ring-gray-200 bg-black">
                             <div className="aspect-video md:aspect-[4/3] map-dark">
@@ -400,10 +379,10 @@ shadow-lg shadow-amber-500/20
                             Abrir en Google Maps →
                         </a>
                     </div>
-                </div>
+                </div> */}
 
-                {/* Filtro para “estilo oscuro” del iframe (sin API key) */}
-                <style>{`
+            {/* Filtro para “estilo oscuro” del iframe (sin API key) */}
+            <style>{`
     .map-dark iframe {
       /* Ajustá estos valores si querés más/menos contraste */
       filter: invert(90%) hue-rotate(180deg) saturate(0.7) brightness(0.85) contrast(1.05);
@@ -411,7 +390,7 @@ shadow-lg shadow-amber-500/20
       transform: translateZ(0);
     }
   `}</style>
-            </section>
+            {/*  </section> */}
             <section className="relative bg-white py-8 fade-in-section border-y border-gray-200">
                 {/*  <div className="relative z-10 overflow-hidden whitespace-nowrap mx-0 md:mx-[104px]">
                     <div className="brands-track will-change-transform">

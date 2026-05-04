@@ -7,7 +7,7 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import logo22 from '@/assets/logo-22.png' */
 import zarpados from '@/assets/zarpados-22.png'
 import { withWholesale } from "../utils/navigation.js";
-import { formatPrice } from "../utils/price.js";
+import { formatPrice, PRICE_SYMBOL } from "../utils/price.js";
 import { Search, ShoppingCart } from "lucide-react";
 import shatha from '@/assets/logo_ayman_sisi.png'
 import { CATEGORY_GROUPS } from "../utils/perfumeCategories.js";
@@ -462,11 +462,15 @@ export default function Header() {
                         }
 
                         return (
-                          <button
+                          <Link
                             key={category.route}
-                            type="button"
+                            to={withWholesale(category.route)}
                             onMouseEnter={() => setActiveProductCategoryRoute(category.route)}
-                            onClick={() => setActiveProductCategoryRoute(category.route)}
+                            onClick={() => {
+                              setActiveProductCategoryRoute(category.route);
+                              window.scrollTo({ top: 0, behavior: "smooth" });
+                              setProductsDropdownOpen(false);
+                            }}
                             className={`flex w-full items-center justify-between px-5 py-3 text-left text-[15px] transition-all duration-200 bg-transparent border-0 rounded-none ${active
                               ? "bg-[#1a1a1d] text-amber-300"
                               : "text-gray-200 hover:text-amber-300 hover:bg-[#1a1a1d]"
@@ -474,7 +478,7 @@ export default function Header() {
                           >
                             <span>{category.name.toUpperCase()}</span>
                             <span aria-hidden="true" className="text-lg leading-none">›</span>
-                          </button>
+                          </Link>
                         );
                       })}
                     </div>
@@ -516,13 +520,6 @@ export default function Header() {
             >
               Mayoristas
             </Link> */}
-              <a
-                href={withWholesale("/inicio") + "#asesoria"}
-                onClick={goToContact}
-                className="text-gray-300 hover:text-amber-300 transition-all duration-300"
-              >
-                Contacto
-              </a>
             </nav>
 
             {/* Desktop Actions */}
@@ -648,10 +645,10 @@ export default function Header() {
                           <div className="text-sm font-bold text-green-600">
                             {location.pathname.startsWith("/mayorista")
                               ? wholesalePrice && wholesalePrice > 0
-                                ? `${formatPrice(wholesalePrice)}`
+                                ? `${PRICE_SYMBOL}${formatPrice(wholesalePrice)}`
                                 : "Consultar"
                               : retailPrice && retailPrice > 0
-                                ? `$${formatPrice(retailPrice)}`
+                                ? `${PRICE_SYMBOL}${formatPrice(retailPrice)}`
                                 : "Consultar"}
                           </div>
                         </div>
@@ -727,11 +724,11 @@ export default function Header() {
                                 {location.pathname.startsWith("/mayorista")
                                   ? (
                                     wholesalePrice && wholesalePrice > 0
-                                      ? `${formatPrice(wholesalePrice)}`
+                                      ? `${PRICE_SYMBOL}${formatPrice(wholesalePrice)}`
                                       : "Consultar"
                                   )
                                   : (retailPrice && retailPrice > 0
-                                    ? `$${formatPrice(retailPrice)}`
+                                    ? `${PRICE_SYMBOL}${formatPrice(retailPrice)}`
                                     : "Consultar")
                                 }
                               </div>
@@ -802,23 +799,32 @@ export default function Header() {
                       return (
                         <div key={category.route} className="border-b border-amber-500/10 pb-2 last:border-b-0">
                           {hasChildren ? (
-                            <button
-                              type="button"
-                              className="flex w-full items-center justify-between bg-transparent border-0 p-0 text-left text-gray-200 hover:text-amber-300 transition-colors"
-                              onClick={() =>
-                                setExpandedMobileCategoryRoute((current) =>
-                                  current === category.route ? "" : category.route
-                                )
-                              }
-                            >
-                              <span>{category.name}</span>
-                              <span
-                                aria-hidden="true"
-                                className={`text-lg leading-none transition-transform ${expanded ? "rotate-90" : ""}`}
+                            <div className="flex items-center justify-between gap-3">
+                              <Link
+                                to={withWholesale(category.route)}
+                                className="flex-1 text-gray-200 hover:text-amber-300 transition-colors"
+                                onClick={() => setExpandedMobileCategoryRoute(category.route)}
                               >
-                                ›
-                              </span>
-                            </button>
+                                {category.name}
+                              </Link>
+                              <button
+                                type="button"
+                                aria-label={`Ver subcategorías de ${category.name}`}
+                                className="bg-transparent border-0 p-0 text-gray-200 hover:text-amber-300 transition-colors"
+                                onClick={() =>
+                                  setExpandedMobileCategoryRoute((current) =>
+                                    current === category.route ? "" : category.route
+                                  )
+                                }
+                              >
+                                <span
+                                  aria-hidden="true"
+                                  className={`block text-lg leading-none transition-transform ${expanded ? "rotate-90" : ""}`}
+                                >
+                                  ›
+                                </span>
+                              </button>
+                            </div>
                           ) : (
                             <Link
                               to={withWholesale(category.route)}
@@ -849,15 +855,6 @@ export default function Header() {
 
                   </div>
                 </div>
-
-                <a
-                  href={withWholesale("/inicio") + "#asesoria"}
-                  onClick={goToContact}
-
-                  className="block pt-4 mt-3 border-t border-gray-700 text-gray-200 hover:text-amber-300 transition-colors text-lg"
-                >
-                  Contacto
-                </a>
 
                 {/* Mobile: Ingresar solo si NO hay usuario */}
                 {

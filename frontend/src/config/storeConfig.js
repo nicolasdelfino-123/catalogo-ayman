@@ -1,5 +1,5 @@
 export const storeConfig = {
-    storeName: " Estilo Fenix Perfumes",
+    storeName: "Bella Roma - Habibi",
 
     branding: {
         heroTitle: "",
@@ -14,12 +14,12 @@ export const storeConfig = {
     },
 
     contact: {
-        whatsapp: "5493534793366",
-        whatsappMessage: "Hola, quiero consultar por un perfume del catálogo",
-        whatsappDisplay: "+56 9 6407 7278",
+        whatsapp: "50672713601",
+        whatsappMessage: "Hola, quiero consultar por un producto del catálogo",
+        whatsappDisplay: "+506 7271 3601",
 
-        instagram: "https://www.instagram.com/danna_decants_puq/",
-        instagramDisplay: "@danna_decants_puq",
+        instagram: "https://www.instagram.com/perfumeriabellaromacr/",
+        instagramDisplay: "@perfumeriabellaromacr",
 
         email: "nicolasdelfino585@gmail.com",
         /*  emailDisplay: "nicolasdelfino585@gmail.com", */

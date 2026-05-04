@@ -18,6 +18,32 @@ from flask import Blueprint, request, jsonify
 
 
 public_bp = Blueprint('public', __name__)
+MAX_HOME_FEATURED_PRODUCTS = 12
+
+
+def _featured_file_path():
+    os.makedirs(current_app.instance_path, exist_ok=True)
+    return os.path.join(current_app.instance_path, "home_featured_products.json")
+
+
+def _read_featured_product_ids():
+    try:
+        with open(_featured_file_path(), "r", encoding="utf-8") as fh:
+            data = json.load(fh)
+        ids = data.get("product_ids", data if isinstance(data, list) else [])
+        clean = []
+        for value in ids:
+            try:
+                product_id = int(value)
+            except (TypeError, ValueError):
+                continue
+            if product_id > 0 and product_id not in clean:
+                clean.append(product_id)
+        return clean[:MAX_HOME_FEATURED_PRODUCTS]
+    except FileNotFoundError:
+        return []
+    except Exception:
+        return []
 
 @public_bp.route('/')
 def home():
@@ -30,6 +56,11 @@ def demo():
 @public_bp.route('/about')
 def about():
     return jsonify({'msg':'About Page'})
+
+
+@public_bp.route('/home-featured-products', methods=['GET'])
+def get_home_featured_products():
+    return jsonify({'product_ids': _read_featured_product_ids()}), 200
 
 # === RUTAS PÚBLICAS PARA LA TIENDA DE VAPES ===
 

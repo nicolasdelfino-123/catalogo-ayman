@@ -13,7 +13,7 @@ from PIL import Image, ImageOps # pip install pillow
 from flask import url_for
 # backend/app/routes/admin_bp.py
 from flask import Blueprint, request, jsonify, current_app, url_for
-import os, io, hashlib, uuid
+import os, io, hashlib, uuid, json
 from app.models import Order, OrderItem  # asegurate que esté arriba también
 from flask import redirect
 
@@ -21,6 +21,49 @@ from flask import redirect
 
 
 admin_bp = Blueprint('admin', __name__)
+MAX_HOME_FEATURED_PRODUCTS = 12
+
+
+def _featured_file_path():
+    os.makedirs(current_app.instance_path, exist_ok=True)
+    return os.path.join(current_app.instance_path, "home_featured_products.json")
+
+
+def _read_featured_product_ids():
+    try:
+        with open(_featured_file_path(), "r", encoding="utf-8") as fh:
+            data = json.load(fh)
+        ids = data.get("product_ids", data if isinstance(data, list) else [])
+        clean = []
+        for value in ids:
+            try:
+                product_id = int(value)
+            except (TypeError, ValueError):
+                continue
+            if product_id > 0 and product_id not in clean:
+                clean.append(product_id)
+        return clean[:MAX_HOME_FEATURED_PRODUCTS]
+    except FileNotFoundError:
+        return []
+    except Exception:
+        return []
+
+
+def _write_featured_product_ids(product_ids):
+    clean = []
+    for value in product_ids:
+        try:
+            product_id = int(value)
+        except (TypeError, ValueError):
+            continue
+        if product_id > 0 and product_id not in clean:
+            clean.append(product_id)
+        if len(clean) >= MAX_HOME_FEATURED_PRODUCTS:
+            break
+
+    with open(_featured_file_path(), "w", encoding="utf-8") as fh:
+        json.dump({"product_ids": clean}, fh)
+    return clean
 
 # Catálogo de categorías esperado por el frontend actual.
 # Mantener IDs estables evita romper FK y filtros ya existentes.
@@ -156,6 +199,30 @@ def admin_required():
 #       PRODUCTOS
 # =======================
 
+
+@admin_bp.route('/home-featured-products', methods=['GET'])
+@jwt_required()
+def get_home_featured_products_admin():
+    if not admin_required():
+        return jsonify({'error': 'Acceso denegado.'}), 403
+    return jsonify({'product_ids': _read_featured_product_ids()}), 200
+
+
+@admin_bp.route('/home-featured-products', methods=['PUT'])
+@jwt_required()
+def update_home_featured_products_admin():
+    if not admin_required():
+        return jsonify({'error': 'Acceso denegado.'}), 403
+    data = request.get_json() or {}
+    product_ids = data.get('product_ids', [])
+    if not isinstance(product_ids, list):
+        return jsonify({'error': 'product_ids debe ser una lista'}), 400
+    if len(product_ids) > MAX_HOME_FEATURED_PRODUCTS:
+        return jsonify({'error': f'Solo podés seleccionar hasta {MAX_HOME_FEATURED_PRODUCTS} productos para Inicio.'}), 400
+    saved_ids = _write_featured_product_ids(product_ids)
+    return jsonify({'product_ids': saved_ids}), 200
+
+
 @admin_bp.route('/products', methods=['POST'])
 @jwt_required()
 def create_product():
@@ -276,7 +343,7 @@ def update_product(product_id):
             product.category_id = safe_category.id
         if 'is_active' in data:
             product.is_active = bool(data['is_active'])
-            # 👇 NUEVO: puffs (caladas)
+        # 👇 NUEVO: puffs (caladas)
         if 'puffs' in data:
             v = str(data.get('puffs','')).strip()
             product.puffs = int(v) if v.isdigit() else None
