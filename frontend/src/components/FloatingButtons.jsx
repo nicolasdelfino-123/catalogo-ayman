@@ -42,7 +42,7 @@ export default function FloatingButtons() {
                     className="
             pointer-events-auto
             group relative
-            w-10 h-10 sm:w-14 sm:h-14
+            w-14 h-14 sm:w-14 sm:h-14
             rounded-full
             bg-green-600
             flex items-center justify-center
@@ -78,7 +78,7 @@ export default function FloatingButtons() {
                     className="
             pointer-events-auto
             group relative
-            w-10 h-10 sm:w-14 sm:h-14
+            w-14 h-14 sm:w-14 sm:h-14
             rounded-full
             bg-black/70 backdrop-blur
             flex items-center justify-center
