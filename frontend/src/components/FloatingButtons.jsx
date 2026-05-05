@@ -24,49 +24,14 @@ export default function FloatingButtons() {
                 className="
           fixed z-[9999]
           right-3 sm:right-4
-          bottom-11 sm:bottom-16
+          bottom-32 sm:bottom-16
           flex flex-col gap-3
           pointer-events-none
         "
                 aria-label="Accesos rápidos"
             >
                 {/* Instagram */}
-                <a
-                    href={IG_URL}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label="Instagram"
-                    className="
-            pointer-events-auto
-            group relative
-            w-10 h-10 sm:w-14 sm:h-14
-            rounded-full
-            bg-black/70 backdrop-blur
-            flex items-center justify-center
-            shadow-xl
-            hover:scale-105 active:scale-95 transition
-            outline-none focus:ring-2 focus:ring-white/50
-          "
-                >
-                    {/* ícono simple (SVG) */}
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
-                        className="w-6 h-6 sm:w-7 sm:h-7 text-white">
-                        <path fill="currentColor" d="M7 2h10a5 5 0 0 1 5 5v10a5 5 0 0 1-5 5H7a5 5 0 0 1-5-5V7a5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3v10a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3V7a3 3 0 0 0-3-3zM12 7a5 5 0 1 1 0 10a5 5 0 0 1 0-10m0 2.2A2.8 2.8 0 1 0 14.8 12A2.8 2.8 0 0 0 12 9.2M17.25 6.75a1 1 0 1 1-1 1a1 1 0 0 1 1-1" />
-                    </svg>
 
-                    {/* Tooltip */}
-                    <span className="
-            absolute right-full mr-2 hidden sm:block
-            whitespace-nowrap
-            px-2 py-1 text-[12px] rounded-md
-            bg-black/80 text-white
-            opacity-0 translate-x-1
-            group-hover:opacity-100 group-hover:translate-x-0
-            transition
-          ">
-                        Instagram
-                    </span>
-                </a>
 
                 {/* WhatsApp */}
                 <a
@@ -103,6 +68,42 @@ export default function FloatingButtons() {
             transition
           ">
                         WhatsApp
+                    </span>
+                </a>
+                <a
+                    href={IG_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label="Instagram"
+                    className="
+            pointer-events-auto
+            group relative
+            w-10 h-10 sm:w-14 sm:h-14
+            rounded-full
+            bg-black/70 backdrop-blur
+            flex items-center justify-center
+            shadow-xl
+            hover:scale-105 active:scale-95 transition
+            outline-none focus:ring-2 focus:ring-white/50
+          "
+                >
+                    {/* ícono simple (SVG) */}
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                        className="w-6 h-6 sm:w-7 sm:h-7 text-white">
+                        <path fill="currentColor" d="M7 2h10a5 5 0 0 1 5 5v10a5 5 0 0 1-5 5H7a5 5 0 0 1-5-5V7a5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3v10a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3V7a3 3 0 0 0-3-3zM12 7a5 5 0 1 1 0 10a5 5 0 0 1 0-10m0 2.2A2.8 2.8 0 1 0 14.8 12A2.8 2.8 0 0 0 12 9.2M17.25 6.75a1 1 0 1 1-1 1a1 1 0 0 1 1-1" />
+                    </svg>
+
+                    {/* Tooltip */}
+                    <span className="
+            absolute right-full mr-2 hidden sm:block
+            whitespace-nowrap
+            px-2 py-1 text-[12px] rounded-md
+            bg-black/80 text-white
+            opacity-0 translate-x-1
+            group-hover:opacity-100 group-hover:translate-x-0
+            transition
+          ">
+                        Instagram
                     </span>
                 </a>
             </div>

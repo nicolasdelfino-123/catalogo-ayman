@@ -33,7 +33,7 @@ export const storeConfig = {
 
     media: {
         heroImage: "banner_ayman.png",
-        heroImage2: "banner2.png",
+        heroImage2: "banner2_si.png",
         footerLogo: "logo_ayman_si.png",
     },
 
