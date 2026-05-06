@@ -14,9 +14,9 @@ export const storeConfig = {
     },
 
     contact: {
-        whatsapp: "50672713601",
+        whatsapp: "50671333389",
         whatsappMessage: "Hola, quiero consultar por un producto del catálogo",
-        whatsappDisplay: "+506 7271 3601",
+        whatsappDisplay: "+506 7133 3389",
 
         instagram: "https://www.instagram.com/perfumeriabellaromacr/",
         instagramDisplay: "@perfumeriabellaromacr",
