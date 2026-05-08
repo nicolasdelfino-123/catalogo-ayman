@@ -141,11 +141,12 @@ def _normalize_volume_options(rows):
             continue
 
         try:
-            ml = int(float(row.get('ml')))
+            raw_ml = row.get('ml')
+            ml = None if raw_ml in ("", None) else int(float(raw_ml))
         except Exception:
-            continue
-        if ml <= 0:
-            continue
+            ml = None
+        if ml is not None and ml <= 0:
+            ml = None
 
         price = None
         raw_price = row.get('price')
@@ -165,6 +166,23 @@ def _normalize_volume_options(rows):
             except Exception:
                 price_wholesale = None
 
+        price_strikethrough = None
+        raw_strike = (
+            row.get('price_strikethrough')
+            if row.get('price_strikethrough') not in ("", None)
+            else row.get('strikethrough_price')
+        )
+        if raw_strike in ("", None):
+            raw_strike = row.get('compare_at_price')
+        if raw_strike in ("", None):
+            raw_strike = row.get('old_price')
+        if raw_strike not in ("", None):
+            try:
+                val = float(raw_strike)
+                price_strikethrough = val if val > 0 else None
+            except Exception:
+                price_strikethrough = None
+
         stock = 0
         raw_stock = row.get('stock')
         if raw_stock not in ("", None):
@@ -177,6 +195,7 @@ def _normalize_volume_options(rows):
             'ml': ml,
             'price': price,
             'price_wholesale': price_wholesale,
+            'price_strikethrough': price_strikethrough,
             'stock': stock,
         })
 
@@ -184,7 +203,7 @@ def _normalize_volume_options(rows):
     by_ml = {}
     for item in normalized:
         by_ml[item['ml']] = item
-    return [by_ml[k] for k in sorted(by_ml.keys())]
+    return [by_ml[k] for k in sorted(by_ml.keys(), key=lambda value: (value is None, value or 0))]
 
 def _sum_volume_stock(rows):
     return sum(max(0, int(x.get('stock', 0) or 0)) for x in (rows or []))
