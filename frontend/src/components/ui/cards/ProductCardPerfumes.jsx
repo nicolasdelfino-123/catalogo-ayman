@@ -42,6 +42,41 @@ const parsePrice = (value) => {
     return Number.isFinite(n) ? n : null;
 };
 
+const getStrikePriceValue = (row) =>
+    row?.price_strikethrough ??
+    row?.strikethrough_price ??
+    row?.compare_at_price ??
+    row?.old_price ??
+    null;
+
+const getRawVolumeOptions = (product) => {
+    if (Array.isArray(product?.volume_options)) return product.volume_options;
+    if (Array.isArray(product?.volumeOptions)) return product.volumeOptions;
+    if (typeof product?.volume_options === "string") {
+        try {
+            const parsed = JSON.parse(product.volume_options);
+            return Array.isArray(parsed) ? parsed : [];
+        } catch {
+            return [];
+        }
+    }
+    if (typeof product?.volumeOptions === "string") {
+        try {
+            const parsed = JSON.parse(product.volumeOptions);
+            return Array.isArray(parsed) ? parsed : [];
+        } catch {
+            return [];
+        }
+    }
+    if (product?.volume_options && typeof product.volume_options === "object") {
+        return Object.values(product.volume_options);
+    }
+    if (product?.volumeOptions && typeof product.volumeOptions === "object") {
+        return Object.values(product.volumeOptions);
+    }
+    return [];
+};
+
 const parseStock = (value) => {
     if (value === null || value === undefined || value === "") return null;
     const n = Number(value);
@@ -67,6 +102,7 @@ export default function ProductCardPerfumes({ product, returnTo, isGrid = true }
         const baseMl = parseMl(product?.volume_ml);
         const basePrice = parsePrice(product?.price);
         const baseWholesale = parsePrice(product?.price_wholesale);
+        const baseStrike = parsePrice(getStrikePriceValue(product));
         const baseStock = parseStock(product?.stock);
 
         if (baseMl && baseMl > 0) {
@@ -74,37 +110,12 @@ export default function ProductCardPerfumes({ product, returnTo, isGrid = true }
                 ml: baseMl,
                 price: basePrice && basePrice > 0 ? basePrice : null,
                 price_wholesale: baseWholesale && baseWholesale > 0 ? baseWholesale : null,
+                price_strikethrough: baseStrike && baseStrike > 0 ? baseStrike : null,
                 stock: baseStock,
             });
         }
 
-        const rawVolumeOptions = (() => {
-            if (Array.isArray(product?.volume_options)) return product.volume_options;
-            if (Array.isArray(product?.volumeOptions)) return product.volumeOptions;
-            if (typeof product?.volume_options === "string") {
-                try {
-                    const parsed = JSON.parse(product.volume_options);
-                    return Array.isArray(parsed) ? parsed : [];
-                } catch {
-                    return [];
-                }
-            }
-            if (typeof product?.volumeOptions === "string") {
-                try {
-                    const parsed = JSON.parse(product.volumeOptions);
-                    return Array.isArray(parsed) ? parsed : [];
-                } catch {
-                    return [];
-                }
-            }
-            if (product?.volume_options && typeof product.volume_options === "object") {
-                return Object.values(product.volume_options);
-            }
-            if (product?.volumeOptions && typeof product.volumeOptions === "object") {
-                return Object.values(product.volumeOptions);
-            }
-            return [];
-        })();
+        const rawVolumeOptions = getRawVolumeOptions(product);
 
         for (const opt of rawVolumeOptions) {
             const ml = parseMl(
@@ -126,6 +137,7 @@ export default function ProductCardPerfumes({ product, returnTo, isGrid = true }
                 opt?.wholesale_price ??
                 opt?.wholesalePrice
             );
+            const priceStrikethrough = parsePrice(getStrikePriceValue(opt));
             const stock = parseStock(opt?.stock ?? opt?.qty ?? opt?.quantity);
 
             if (!ml || ml <= 0) continue;
@@ -134,6 +146,7 @@ export default function ProductCardPerfumes({ product, returnTo, isGrid = true }
                 ml,
                 price: price && price > 0 ? price : null,
                 price_wholesale: priceWholesale && priceWholesale > 0 ? priceWholesale : null,
+                price_strikethrough: priceStrikethrough && priceStrikethrough > 0 ? priceStrikethrough : null,
                 stock,
             });
         }
@@ -162,10 +175,19 @@ export default function ProductCardPerfumes({ product, returnTo, isGrid = true }
     const retailPrice = Number(
         selectedSize ? selectedSize?.price : product?.price
     );
+    const strikePrice = Number(
+        selectedSize
+            ? getStrikePriceValue(selectedSize)
+            : (
+                getStrikePriceValue(product) ??
+                getStrikePriceValue(getRawVolumeOptions(product).find((opt) => Number(getStrikePriceValue(opt)) > 0 && !parseMl(opt?.ml)))
+            )
+    );
 
     const finalPrice = isWholesale
         ? (wholesalePrice > 0 ? wholesalePrice : null)
         : (retailPrice > 0 ? retailPrice : null);
+    const finalStrikePrice = !isWholesale && strikePrice > 0 ? strikePrice : null;
     const pricePrefix = PRICE_SYMBOL;
     const displayCategoryName = getDisplayCategoryName(product);
 
@@ -272,9 +294,16 @@ export default function ProductCardPerfumes({ product, returnTo, isGrid = true }
                 {/* Precio */}
                 <div className="mt-2 sm:mt-4 text-center">
                     {finalPrice !== null ? (
-                        <span className="text-lg sm:text-xl font-semibold text-black tracking-tight">
-                            {pricePrefix}{formatPrice(finalPrice)}
-                        </span>
+                        <div className="flex flex-wrap items-baseline justify-center gap-x-2 gap-y-1">
+                            <span className="text-lg sm:text-xl font-semibold text-black tracking-tight">
+                                {pricePrefix}{formatPrice(finalPrice)}
+                            </span>
+                            {finalStrikePrice && (
+                                <span className="text-sm sm:text-base font-medium text-stone-400 line-through">
+                                    {pricePrefix}{formatPrice(finalStrikePrice)}
+                                </span>
+                            )}
+                        </div>
                     ) : (
                         <span className="text-xs text-stone-400 italic">
                             Consultar

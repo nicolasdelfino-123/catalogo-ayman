@@ -104,6 +104,41 @@ const parsePrice = (value) => {
     return Number.isFinite(n) ? n : null;
 };
 
+const getStrikePriceValue = (row) =>
+    row?.price_strikethrough ??
+    row?.strikethrough_price ??
+    row?.compare_at_price ??
+    row?.old_price ??
+    null;
+
+const getRawVolumeOptions = (product) => {
+    if (Array.isArray(product?.volume_options)) return product.volume_options;
+    if (Array.isArray(product?.volumeOptions)) return product.volumeOptions;
+    if (typeof product?.volume_options === "string") {
+        try {
+            const parsed = JSON.parse(product.volume_options);
+            return Array.isArray(parsed) ? parsed : [];
+        } catch {
+            return [];
+        }
+    }
+    if (typeof product?.volumeOptions === "string") {
+        try {
+            const parsed = JSON.parse(product.volumeOptions);
+            return Array.isArray(parsed) ? parsed : [];
+        } catch {
+            return [];
+        }
+    }
+    if (product?.volume_options && typeof product.volume_options === "object") {
+        return Object.values(product.volume_options);
+    }
+    if (product?.volumeOptions && typeof product.volumeOptions === "object") {
+        return Object.values(product.volumeOptions);
+    }
+    return [];
+};
+
 const parseStock = (value) => {
     if (value === null || value === undefined || value === "") return null;
     const n = Number(value);
@@ -151,6 +186,7 @@ export default function ProductDetailNuevo() {
         const baseMl = parseMl(product?.volume_ml);
         const basePrice = parsePrice(product?.price);
         const baseWholesale = parsePrice(product?.price_wholesale);
+        const baseStrike = parsePrice(getStrikePriceValue(product));
         const baseStock = parseStock(product?.stock);
 
         if (baseMl && baseMl > 0) {
@@ -158,37 +194,12 @@ export default function ProductDetailNuevo() {
                 ml: baseMl,
                 price: basePrice && basePrice > 0 ? basePrice : null,
                 price_wholesale: baseWholesale && baseWholesale > 0 ? baseWholesale : null,
+                price_strikethrough: baseStrike && baseStrike > 0 ? baseStrike : null,
                 stock: baseStock,
             });
         }
 
-        const rawVolumeOptions = (() => {
-            if (Array.isArray(product?.volume_options)) return product.volume_options;
-            if (Array.isArray(product?.volumeOptions)) return product.volumeOptions;
-            if (typeof product?.volume_options === "string") {
-                try {
-                    const parsed = JSON.parse(product.volume_options);
-                    return Array.isArray(parsed) ? parsed : [];
-                } catch {
-                    return [];
-                }
-            }
-            if (typeof product?.volumeOptions === "string") {
-                try {
-                    const parsed = JSON.parse(product.volumeOptions);
-                    return Array.isArray(parsed) ? parsed : [];
-                } catch {
-                    return [];
-                }
-            }
-            if (product?.volume_options && typeof product.volume_options === "object") {
-                return Object.values(product.volume_options);
-            }
-            if (product?.volumeOptions && typeof product.volumeOptions === "object") {
-                return Object.values(product.volumeOptions);
-            }
-            return [];
-        })();
+        const rawVolumeOptions = getRawVolumeOptions(product);
 
         for (const opt of rawVolumeOptions) {
             const ml = parseMl(
@@ -206,6 +217,7 @@ export default function ProductDetailNuevo() {
                 opt?.wholesale_price ??
                 opt?.wholesalePrice
             );
+            const priceStrikethrough = parsePrice(getStrikePriceValue(opt));
             const stock = parseStock(opt?.stock ?? opt?.qty ?? opt?.quantity);
             if (!ml || ml <= 0) continue;
 
@@ -213,6 +225,7 @@ export default function ProductDetailNuevo() {
                 ml,
                 price: price && price > 0 ? price : null,
                 price_wholesale: priceWholesale && priceWholesale > 0 ? priceWholesale : null,
+                price_strikethrough: priceStrikethrough && priceStrikethrough > 0 ? priceStrikethrough : null,
                 stock,
             });
         }
@@ -234,9 +247,18 @@ export default function ProductDetailNuevo() {
     const wholesalePrice = Number(
         selectedSize ? selectedSize?.price_wholesale : product?.price_wholesale
     );
+    const strikePrice = Number(
+        selectedSize
+            ? getStrikePriceValue(selectedSize)
+            : (
+                getStrikePriceValue(product) ??
+                getStrikePriceValue(getRawVolumeOptions(product).find((opt) => Number(getStrikePriceValue(opt)) > 0 && !parseMl(opt?.ml)))
+            )
+    );
     const finalPrice = isWholesale
         ? (wholesalePrice > 0 ? wholesalePrice : null)
         : (retailPrice > 0 ? retailPrice : null);
+    const finalStrikePrice = !isWholesale && strikePrice > 0 ? strikePrice : null;
     const pricePrefix = PRICE_SYMBOL;
 
     /* =========================
@@ -417,9 +439,18 @@ export default function ProductDetailNuevo() {
 
 
                         <div className="text-2xl sm:text-2xl font-semibold text-black mb-4">
-                            {finalPrice !== null
-                                ? `${pricePrefix}${formatPrice(finalPrice)}`
-                                : "Consultar"}
+                            {finalPrice !== null ? (
+                                <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                                    <span>{pricePrefix}{formatPrice(finalPrice)}</span>
+                                    {finalStrikePrice && (
+                                        <span className="text-lg font-medium text-stone-400 line-through">
+                                            {pricePrefix}{formatPrice(finalStrikePrice)}
+                                        </span>
+                                    )}
+                                </div>
+                            ) : (
+                                "Consultar"
+                            )}
                         </div>
                         {sizeOptions.length > 0 && (
                             <div className="mb-4">

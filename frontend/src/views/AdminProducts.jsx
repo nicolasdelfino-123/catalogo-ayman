@@ -69,6 +69,13 @@ const formatEditableMoney = (value) => {
     return String(parsed).replace(".", ",");
 };
 
+const getStrikePriceValue = (row) =>
+    row?.price_strikethrough ??
+    row?.strikethrough_price ??
+    row?.compare_at_price ??
+    row?.old_price ??
+    null;
+
 const stripHtml = (value = "") =>
     String(value || "")
         .replace(/<[^>]+>/g, " ")
@@ -382,6 +389,11 @@ const normalizeVolumeOptions = (rows = [], { keepWithoutMl = false } = {}) =>
                 priceWholesaleRaw === "" || priceWholesaleRaw === null || priceWholesaleRaw === undefined
                     ? null
                     : parseFlexibleDecimal(priceWholesaleRaw);
+            const strikeRaw = getStrikePriceValue(row);
+            const priceStrikethrough =
+                strikeRaw === "" || strikeRaw === null || strikeRaw === undefined
+                    ? null
+                    : parseFlexibleDecimal(strikeRaw);
 
             return {
                 ml: Number.isFinite(ml) ? Math.max(0, Math.floor(ml)) : null,
@@ -389,6 +401,8 @@ const normalizeVolumeOptions = (rows = [], { keepWithoutMl = false } = {}) =>
                 stock: Number.isFinite(stockRaw) ? Math.max(0, Math.floor(stockRaw)) : 0,
                 price_wholesale:
                     Number.isFinite(priceWholesale) && priceWholesale > 0 ? priceWholesale : null,
+                price_strikethrough:
+                    Number.isFinite(priceStrikethrough) && priceStrikethrough > 0 ? priceStrikethrough : null,
             };
         })
         .filter((row) => keepWithoutMl || (row.ml != null && row.ml > 0));
@@ -411,12 +425,56 @@ const upsertVolumeOption = (rows = [], row) => {
     return [...filtered, row].sort(sortVolumeOptions);
 };
 
+const applyDraftPricingToVolumeOptions = (form = {}) => {
+    const options = normalizeVolumeOptions(form.volume_options || [], { keepWithoutMl: true });
+    const directRetail = parseFlexibleDecimal(form.price);
+    const directWholesale = parseFlexibleDecimal(form.price_wholesale);
+    const directStrike = parseFlexibleDecimal(form.price_strikethrough);
+    const hasDraftPricing =
+        (Number.isFinite(directRetail) && directRetail > 0) ||
+        (Number.isFinite(directWholesale) && directWholesale > 0) ||
+        (Number.isFinite(directStrike) && directStrike > 0);
+
+    if (!hasDraftPricing) return options;
+
+    const draftMl = Number(form.volume_ml);
+    const targetMl =
+        Number.isFinite(draftMl) && draftMl > 0
+            ? Math.floor(draftMl)
+            : (Number.isFinite(Number(options[0]?.ml)) && Number(options[0].ml) > 0 ? Number(options[0].ml) : null);
+    const existing =
+        options.find((row) => Number(row?.ml) === Number(targetMl)) ||
+        options[0] ||
+        {};
+    const draftStock = Math.max(0, Math.floor(Number(form.volume_stock) || 0));
+
+    const row = {
+        ...existing,
+        ml: targetMl,
+        price: Number.isFinite(directRetail) && directRetail > 0
+            ? directRetail
+            : (Number(existing?.price) > 0 ? Number(existing.price) : null),
+        price_wholesale: Number.isFinite(directWholesale) && directWholesale > 0
+            ? directWholesale
+            : (Number(existing?.price_wholesale) > 0 ? Number(existing.price_wholesale) : null),
+        price_strikethrough: Number.isFinite(directStrike) && directStrike > 0
+            ? directStrike
+            : (Number(getStrikePriceValue(existing)) > 0 ? Number(getStrikePriceValue(existing)) : null),
+        stock: form.volume_stock !== "" && form.volume_stock !== null && form.volume_stock !== undefined
+            ? draftStock
+            : (Number.isFinite(Number(existing?.stock)) ? Math.max(0, Math.floor(Number(existing.stock))) : 0),
+    };
+
+    return upsertVolumeOption(options, row);
+};
+
 const clearPricingInputs = (state) => ({
     ...state,
     volume_ml: "",
     volume_stock: "",
     price: "",
     price_wholesale: "",
+    price_strikethrough: "",
 });
 
 // ----- Componente principal -----
@@ -441,6 +499,8 @@ export default function AdminProducts() {
 
     const [editingWholesaleId, setEditingWholesaleId] = useState(null);
     const [editingWholesale, setEditingWholesale] = useState("");
+    const [editingStrikeId, setEditingStrikeId] = useState(null);
+    const [editingStrike, setEditingStrike] = useState("");
     const [budgetMode, setBudgetMode] = useState(false);
     const [budgetFilter, setBudgetFilter] = useState("all");
     const [budgetSelections, setBudgetSelections] = useState({});
@@ -567,10 +627,23 @@ export default function AdminProducts() {
 
     };
 
+    const startEditStrike = (product, currentStrike) => {
+        setEditingStrikeId(product.id);
+        setEditingStrike(
+            currentStrike == null || currentStrike === ""
+                ? ""
+                : formatEditableMoney(currentStrike)
+        );
+    };
 
     const cancelEditPrice = () => {
         setEditingPriceId(null);
         setEditingPrice("");
+    };
+
+    const cancelEditStrike = () => {
+        setEditingStrikeId(null);
+        setEditingStrike("");
     };
 
     const confirmEditPrice = async () => {
@@ -585,15 +658,19 @@ export default function AdminProducts() {
 
         const mlKey = selectedMlByProduct[editingPriceId] ?? getDefaultMlKey(product);
         const selectedMl = mlKey === "sin_ml" ? null : Number(mlKey);
+        const isSelectedWithoutMl = mlKey === "sin_ml";
 
         const baseOptions = normalizeVolumeOptions(product.volume_options || [], { keepWithoutMl: true });
         let payload = { price: newPriceNum };
         let nextProductPatch = { price: newPriceNum };
 
-        if (Number.isFinite(selectedMl) && selectedMl > 0) {
+        if (isSelectedWithoutMl || (Number.isFinite(selectedMl) && selectedMl > 0)) {
             let found = false;
             const nextOptions = baseOptions.map((row) => {
-                if (Number(row?.ml) === Number(selectedMl)) {
+                const matches = isSelectedWithoutMl
+                    ? row?.ml == null
+                    : Number(row?.ml) === Number(selectedMl);
+                if (matches) {
                     found = true;
                     return { ...row, price: newPriceNum };
                 }
@@ -601,17 +678,21 @@ export default function AdminProducts() {
             });
             if (!found) {
                 nextOptions.push({
-                    ml: Math.floor(selectedMl),
+                    ml: isSelectedWithoutMl ? null : Math.floor(selectedMl),
                     price: newPriceNum,
                     stock: Number.isFinite(Number(product.stock)) ? Number(product.stock) : 0,
                     price_wholesale:
                         Number.isFinite(Number(product.price_wholesale)) && Number(product.price_wholesale) > 0
                             ? Number(product.price_wholesale)
                             : null,
+                    price_strikethrough:
+                        Number.isFinite(Number(getStrikePriceValue(product))) && Number(getStrikePriceValue(product)) > 0
+                            ? Number(getStrikePriceValue(product))
+                            : null,
                 });
                 nextOptions.sort(sortVolumeOptions);
             }
-            payload = { volume_options: normalizeVolumeOptions(nextOptions) };
+            payload = { volume_options: normalizeVolumeOptions(nextOptions, { keepWithoutMl: true }) };
             nextProductPatch = { volume_options: nextOptions };
         }
 
@@ -637,6 +718,81 @@ export default function AdminProducts() {
             alert("Error actualizando el precio");
         }
     };
+
+    const confirmEditStrike = async () => {
+        if (!editingStrikeId) return;
+
+        const newPrice = parseFlexibleDecimal(editingStrike);
+        if (editingStrike !== "" && newPrice !== null && (!Number.isFinite(newPrice) || newPrice < 0)) {
+            alert("Precio tachado inválido");
+            return;
+        }
+
+        const product = products.find((x) => x.id === editingStrikeId);
+        if (!product) return;
+
+        const mlKey = selectedMlByProduct[editingStrikeId] ?? getDefaultMlKey(product);
+        const selectedMl = mlKey === "sin_ml" ? null : Number(mlKey);
+        const isSelectedWithoutMl = mlKey === "sin_ml";
+        const baseOptions = normalizeVolumeOptions(product.volume_options || [], { keepWithoutMl: true });
+        const normalizedStrike = Number.isFinite(newPrice) && newPrice > 0 ? newPrice : null;
+        let payload = { price_strikethrough: normalizedStrike };
+        let nextProductPatch = { price_strikethrough: normalizedStrike };
+
+        if (isSelectedWithoutMl || (Number.isFinite(selectedMl) && selectedMl > 0)) {
+            let found = false;
+            const nextOptions = baseOptions.map((row) => {
+                const matches = isSelectedWithoutMl
+                    ? row?.ml == null
+                    : Number(row?.ml) === Number(selectedMl);
+                if (matches) {
+                    found = true;
+                    return { ...row, price_strikethrough: normalizedStrike };
+                }
+                return row;
+            });
+            if (!found) {
+                nextOptions.push({
+                    ml: isSelectedWithoutMl ? null : Math.floor(selectedMl),
+                    price:
+                        Number.isFinite(Number(product.price)) && Number(product.price) > 0
+                            ? Number(product.price)
+                            : 0,
+                    stock: Number.isFinite(Number(product.stock)) ? Number(product.stock) : 0,
+                    price_wholesale:
+                        Number.isFinite(Number(product.price_wholesale)) && Number(product.price_wholesale) > 0
+                            ? Number(product.price_wholesale)
+                            : null,
+                    price_strikethrough: normalizedStrike,
+                });
+                nextOptions.sort(sortVolumeOptions);
+            }
+            payload = { volume_options: normalizeVolumeOptions(nextOptions, { keepWithoutMl: true }) };
+            nextProductPatch = { volume_options: nextOptions };
+        }
+
+        try {
+            const res = await fetch(`${API}/admin/products/${editingStrikeId}`, {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`,
+                },
+                body: JSON.stringify(payload),
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                alert(`No se pudo actualizar el precio tachado: ${data?.error || res.statusText}`);
+                return;
+            }
+            setProducts((prev) => prev.map((x) => x.id === editingStrikeId ? { ...x, ...nextProductPatch } : x));
+            cancelEditStrike();
+        } catch (e) {
+            console.error(e);
+            alert("Error actualizando precio tachado");
+        }
+    };
+
     const confirmEditWholesale = async () => {
         if (!editingWholesaleId) return;
 
@@ -652,15 +808,19 @@ export default function AdminProducts() {
 
         const mlKey = selectedMlByProduct[editingWholesaleId] ?? getDefaultMlKey(product);
         const selectedMl = mlKey === "sin_ml" ? null : Number(mlKey);
+        const isSelectedWithoutMl = mlKey === "sin_ml";
 
         const baseOptions = normalizeVolumeOptions(product.volume_options || [], { keepWithoutMl: true });
         let payload = { price_wholesale: newPrice };
         let nextProductPatch = { price_wholesale: newPrice };
 
-        if (Number.isFinite(selectedMl) && selectedMl > 0) {
+        if (isSelectedWithoutMl || (Number.isFinite(selectedMl) && selectedMl > 0)) {
             let found = false;
             const nextOptions = baseOptions.map((row) => {
-                if (Number(row?.ml) === Number(selectedMl)) {
+                const matches = isSelectedWithoutMl
+                    ? row?.ml == null
+                    : Number(row?.ml) === Number(selectedMl);
+                if (matches) {
                     found = true;
                     return { ...row, price_wholesale: newPrice };
                 }
@@ -668,17 +828,21 @@ export default function AdminProducts() {
             });
             if (!found) {
                 nextOptions.push({
-                    ml: Math.floor(selectedMl),
+                    ml: isSelectedWithoutMl ? null : Math.floor(selectedMl),
                     price:
                         Number.isFinite(Number(product.price)) && Number(product.price) > 0
                             ? Number(product.price)
                             : 0,
                     stock: Number.isFinite(Number(product.stock)) ? Number(product.stock) : 0,
                     price_wholesale: newPrice,
+                    price_strikethrough:
+                        Number.isFinite(Number(getStrikePriceValue(product))) && Number(getStrikePriceValue(product)) > 0
+                            ? Number(getStrikePriceValue(product))
+                            : null,
                 });
                 nextOptions.sort(sortVolumeOptions);
             }
-            payload = { volume_options: normalizeVolumeOptions(nextOptions) };
+            payload = { volume_options: normalizeVolumeOptions(nextOptions, { keepWithoutMl: true }) };
             nextProductPatch = { volume_options: nextOptions };
         }
 
@@ -744,14 +908,18 @@ export default function AdminProducts() {
 
         const mlKey = selectedMlByProduct[editingStockId] ?? getDefaultMlKey(product);
         const selectedMl = mlKey === "sin_ml" ? null : Number(mlKey);
+        const isSelectedWithoutMl = mlKey === "sin_ml";
         const baseOptions = normalizeVolumeOptions(product.volume_options || [], { keepWithoutMl: true });
         let payload = { stock: newStock };
         let nextProductPatch = { stock: newStock };
 
-        if (Number.isFinite(selectedMl) && selectedMl > 0) {
+        if (isSelectedWithoutMl || (Number.isFinite(selectedMl) && selectedMl > 0)) {
             let found = false;
             const nextOptions = baseOptions.map((row) => {
-                if (Number(row?.ml) === Number(selectedMl)) {
+                const matches = isSelectedWithoutMl
+                    ? row?.ml == null
+                    : Number(row?.ml) === Number(selectedMl);
+                if (matches) {
                     found = true;
                     return { ...row, stock: newStock };
                 }
@@ -759,17 +927,21 @@ export default function AdminProducts() {
             });
             if (!found) {
                 nextOptions.push({
-                    ml: Math.floor(selectedMl),
+                    ml: isSelectedWithoutMl ? null : Math.floor(selectedMl),
                     price: Number.isFinite(Number(product.price)) ? Number(product.price) : 0,
                     price_wholesale:
                         Number.isFinite(Number(product.price_wholesale)) && Number(product.price_wholesale) > 0
                             ? Number(product.price_wholesale)
                             : null,
                     stock: newStock,
+                    price_strikethrough:
+                        Number.isFinite(Number(getStrikePriceValue(product))) && Number(getStrikePriceValue(product)) > 0
+                            ? Number(getStrikePriceValue(product))
+                            : null,
                 });
                 nextOptions.sort(sortVolumeOptions);
             }
-            payload = { volume_options: normalizeVolumeOptions(nextOptions) };
+            payload = { volume_options: normalizeVolumeOptions(nextOptions, { keepWithoutMl: true }) };
             nextProductPatch = { volume_options: nextOptions };
         }
 
@@ -941,12 +1113,15 @@ export default function AdminProducts() {
                 return "";                                     // invalida textos sueltos (evita 404 /frutal)
             })();
             const { image_urls, volume_stock, show_on_home, ...cleanForm } = form;
-            const allVolumeOptions = normalizeVolumeOptions(form.volume_options || [], { keepWithoutMl: true });
+            const allVolumeOptions = applyDraftPricingToVolumeOptions(form);
             const fallbackRetail = Number(
                 allVolumeOptions.find((row) => Number(row?.price) > 0)?.price
             );
             const fallbackWholesale = Number(
                 allVolumeOptions.find((row) => Number(row?.price_wholesale) > 0)?.price_wholesale
+            );
+            const fallbackStrike = Number(
+                allVolumeOptions.find((row) => Number(getStrikePriceValue(row)) > 0)?.price_strikethrough
             );
             const stockFromVolumes = allVolumeOptions.reduce(
                 (acc, row) => acc + (Number.isFinite(Number(row?.stock)) ? Number(row.stock) : 0),
@@ -957,6 +1132,7 @@ export default function AdminProducts() {
                 : Number(form.stock ?? 0);
             const directRetail = parseFlexibleDecimal(form.price);
             const directWholesale = parseFlexibleDecimal(form.price_wholesale);
+            const directStrike = parseFlexibleDecimal(form.price_strikethrough);
             const wantsHome = Boolean(form.show_on_home);
             const selectedHomeIds = featuredProductIds.filter((id) => Number(id) !== Number(form.id));
             if (wantsHome && selectedHomeIds.length >= MAX_HOME_FEATURED_PRODUCTS) {
@@ -973,11 +1149,15 @@ export default function AdminProducts() {
                     Number.isFinite(directWholesale) && directWholesale > 0
                         ? directWholesale
                         : (Number.isFinite(fallbackWholesale) && fallbackWholesale > 0 ? fallbackWholesale : null),
+                price_strikethrough:
+                    Number.isFinite(directStrike) && directStrike > 0
+                        ? directStrike
+                        : (Number.isFinite(fallbackStrike) && fallbackStrike > 0 ? fallbackStrike : null),
                 volume_ml:
                     form.volume_ml !== "" && form.volume_ml !== null && form.volume_ml !== undefined && !isNaN(Number(form.volume_ml))
                         ? Math.max(0, Math.floor(Number(form.volume_ml)))
                         : null,
-                volume_options: normalizeVolumeOptions(form.volume_options || []),
+                volume_options: normalizeVolumeOptions(allVolumeOptions, { keepWithoutMl: true }),
 
 
                 image_url: normalizedImageUrl,
@@ -1104,6 +1284,10 @@ export default function AdminProducts() {
                     Number.isFinite(Number(p?.price_wholesale)) && Number(p.price_wholesale) > 0
                         ? Number(p.price_wholesale)
                         : null,
+                price_strikethrough:
+                    Number.isFinite(Number(getStrikePriceValue(p))) && Number(getStrikePriceValue(p)) > 0
+                        ? Number(getStrikePriceValue(p))
+                        : null,
             }];
         }
 
@@ -1114,6 +1298,10 @@ export default function AdminProducts() {
             price_wholesale:
                 Number.isFinite(Number(p?.price_wholesale)) && Number(p.price_wholesale) > 0
                     ? Number(p.price_wholesale)
+                    : null,
+            price_strikethrough:
+                Number.isFinite(Number(getStrikePriceValue(p))) && Number(getStrikePriceValue(p)) > 0
+                    ? Number(getStrikePriceValue(p))
                     : null,
         }];
     };
@@ -1372,6 +1560,7 @@ export default function AdminProducts() {
 
                         price: "",
                         price_wholesale: "",
+                        price_strikethrough: "",
                         volume_ml: "",
                         volume_stock: "",
                         volume_options: [],
@@ -1525,6 +1714,10 @@ export default function AdminProducts() {
                                 <span className="md:hidden">Min</span>
                                 <span className="hidden md:inline">Precio minorista</span>
                             </th>
+                            <th className="p-2">
+                                <span className="md:hidden">Tach</span>
+                                <span className="hidden md:inline">Precio<br /> tachado</span>
+                            </th>
 
                             <th className="p-2">
                                 <span className="md:hidden">May</span>
@@ -1548,12 +1741,16 @@ export default function AdminProducts() {
                                 Number.isFinite(Number(selectedOption?.price_wholesale)) && Number(selectedOption.price_wholesale) > 0
                                     ? Number(selectedOption.price_wholesale)
                                     : null;
+                            const strikeShown =
+                                Number.isFinite(Number(getStrikePriceValue(selectedOption))) && Number(getStrikePriceValue(selectedOption)) > 0
+                                    ? Number(getStrikePriceValue(selectedOption))
+                                    : null;
                             const stockShown =
                                 Number.isFinite(Number(selectedOption?.stock))
                                     ? Number(selectedOption.stock)
                                     : (Number.isFinite(Number(p?.stock)) ? Number(p.stock) : 0);
                             const isMobileExpanded = expandedMobileProductId === p.id;
-                            const tableColSpan = budgetMode ? 14 : 12;
+                            const tableColSpan = budgetMode ? 15 : 13;
                             const isFeaturedSelected = featuredProductIds.includes(Number(p.id));
                             const featuredLimitReached = featuredProductIds.length >= MAX_HOME_FEATURED_PRODUCTS;
 
@@ -1655,6 +1852,54 @@ export default function AdminProducts() {
                                                         className="px-2 py-1 border rounded hover:bg-gray-50"
                                                         title="Editar precio"
                                                         onClick={() => startEditPrice(p, retailShown)}
+                                                    >
+                                                        ✏️
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </td>
+                                        <td className="p-2">
+                                            {editingStrikeId === p.id ? (
+                                                <div className="flex items-center justify-center gap-2">
+                                                    <input
+                                                        className="w-20 md:w-24 border rounded px-2 py-1 text-right tabular-nums"
+                                                        type="text"
+                                                        inputMode="decimal"
+                                                        autoFocus
+                                                        value={editingStrike ?? ""}
+                                                        onChange={(e) => setEditingStrike(e.target.value.replace(/[^\d,.\s]/g, ""))}
+                                                        onKeyDown={(e) => {
+                                                            if (e.key === "Enter") confirmEditStrike();
+                                                            if (e.key === "Escape") cancelEditStrike();
+                                                        }}
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        className="px-2 py-1 border rounded hover:bg-green-50"
+                                                        title="Guardar"
+                                                        onClick={confirmEditStrike}
+                                                    >
+                                                        ✅
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        className="px-2 py-1 border rounded hover:bg-gray-50"
+                                                        title="Cancelar"
+                                                        onClick={cancelEditStrike}
+                                                    >
+                                                        ❌
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <div className="flex items-center justify-center gap-2">
+                                                    <span className="whitespace-nowrap tabular-nums text-gray-500 line-through">
+                                                        {strikeShown ? `₡ ${formatPrice(strikeShown)}` : "—"}
+                                                    </span>
+                                                    <button
+                                                        type="button"
+                                                        className="px-2 py-1 border rounded hover:bg-gray-50"
+                                                        title="Editar precio tachado"
+                                                        onClick={() => startEditStrike(p, strikeShown)}
                                                     >
                                                         ✏️
                                                     </button>
@@ -1911,6 +2156,7 @@ export default function AdminProducts() {
                                                         category_id: Number(p.category_id) === 6 ? 1 : p.category_id,
                                                         price: "",
                                                         price_wholesale: "",
+                                                        price_strikethrough: "",
                                                         volume_ml: "",
                                                         volume_stock: "",
                                                         volume_options: getMlOptionsForTable(p),
@@ -2238,6 +2484,7 @@ export default function AdminProducts() {
                                     const ml = Number(form.volume_ml);
                                     const price = parseFlexibleDecimal(form.price);
                                     const priceWholesale = parseFlexibleDecimal(form.price_wholesale);
+                                    const priceStrikethrough = parseFlexibleDecimal(form.price_strikethrough);
                                     const stock = Math.max(0, Math.floor(Number(form.volume_stock) || 0));
                                     const row = {
                                         ml: Number.isFinite(ml) && ml > 0 ? Math.floor(ml) : null,
@@ -2246,6 +2493,10 @@ export default function AdminProducts() {
                                         price_wholesale:
                                             Number.isFinite(priceWholesale) && priceWholesale > 0
                                                 ? priceWholesale
+                                                : null,
+                                        price_strikethrough:
+                                            Number.isFinite(priceStrikethrough) && priceStrikethrough > 0
+                                                ? priceStrikethrough
                                                 : null,
                                     };
 
@@ -2267,7 +2518,7 @@ export default function AdminProducts() {
                             </button>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">
                                     Precio minorista
@@ -2289,6 +2540,33 @@ export default function AdminProducts() {
                                             setForm({
                                                 ...form,
                                                 price: e.target.value.replace(/[^\d,.\s]/g, "")
+                                            })
+                                        }
+                                    />
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    Precio tachado
+                                </label>
+
+                                <div className="relative">
+                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                                        ₡
+                                    </span>
+
+                                    <input
+                                        className="w-full border rounded pl-7 pr-3 py-2"
+                                        placeholder="Opcional"
+                                        type="text"
+                                        inputMode="decimal"
+                                        {...noSpin}
+                                        value={form.price_strikethrough ?? ""}
+                                        onChange={(e) =>
+                                            setForm({
+                                                ...form,
+                                                price_strikethrough: e.target.value.replace(/[^\d,.\s]/g, "")
                                             })
                                         }
                                     />
@@ -2330,6 +2608,9 @@ export default function AdminProducts() {
                                     <div key={`${row.ml}-${idx}`} className="flex items-center justify-between text-sm border rounded px-3 py-2">
                                         <span>
                                             {row.ml != null ? `${row.ml} ml` : "Sin ml"} · {Number(row.price) > 0 ? `$${Number(row.price).toLocaleString("es-AR")}` : "Consultar"}
+                                            {Number(getStrikePriceValue(row)) > 0
+                                                ? ` · Tachado $${formatPrice(getStrikePriceValue(row))}`
+                                                : ""}
                                             {Number(row.price_wholesale) > 0
                                                 ? ` · Mayorista $${formatPrice(row.price_wholesale)}`
                                                 : ""}
@@ -2347,6 +2628,8 @@ export default function AdminProducts() {
                                                         volume_ml: row.ml ?? "",
                                                         volume_stock: Number.isFinite(Number(row?.stock)) ? String(row.stock) : "",
                                                         price: Number(row?.price) > 0 ? String(row.price) : "",
+                                                        price_strikethrough:
+                                                            Number(getStrikePriceValue(row)) > 0 ? formatPrice(getStrikePriceValue(row)) : "",
                                                         price_wholesale:
                                                             Number(row?.price_wholesale) > 0 ? formatPrice(row.price_wholesale) : "",
 
