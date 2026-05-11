@@ -6,7 +6,6 @@ const API = import.meta.env.VITE_BACKEND_URL?.replace(/\/+$/, "") || "";
 export default function AdminPedidos() {
     const [orders, setOrders] = useState([]);
     const [selected, setSelected] = useState(null); // 🆕 Pedido seleccionado
-    const [loadingId, setLoadingId] = useState(null);
     const navigate = useNavigate();
 
     const token =
@@ -30,27 +29,6 @@ export default function AdminPedidos() {
     useEffect(() => {
         fetchOrders();
     }, []);
-
-    const updateStatus = async (id, status, tracking_code = "") => {
-        try {
-            const res = await fetch(`${API}/admin/orders/${id}/status`, {
-                method: "PUT",
-                headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${token}`,
-                },
-                body: JSON.stringify({ status, tracking_code }),
-            });
-            if (!res.ok) throw new Error("No se pudo actualizar el estado");
-            await fetchOrders();
-            alert("Estado actualizado y email enviado al cliente");
-        } catch (err) {
-            console.error(err);
-            alert("Error actualizando estado");
-        }
-    };
-
-
     return (
         <div className="p-6">
             <button
@@ -158,6 +136,10 @@ export default function AdminPedidos() {
                 // detectar mayorista: si los precios parecen mayoristas
                 const isWholesale = items.some(i => i.price && i.price < 1000);
                 const currency = isWholesale ? "$" : "$";
+                const selectedPhone =
+                    selected.customer_phone ||
+                    selected.shipping_address?.phone ||
+                    "Sin teléfono";
 
                 return (
                     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -185,6 +167,10 @@ export default function AdminPedidos() {
                             <div className="mb-4 space-y-1">
                                 <p>
                                     <strong>Cliente:</strong> {selected.customer_first_name}
+                                </p>
+
+                                <p>
+                                    <strong>Teléfono:</strong> {selectedPhone}
                                 </p>
 
                                 <p>
